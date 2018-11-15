@@ -1,0 +1,273 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"uint",
+				"uint64_t"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "main.py",
+			"settings":
+			{
+				"buffer_size": 1,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Packages/Makefile/Make.sublime-build",
+					""
+				],
+				[
+					"Packages/Makefile/Make.sublime-build",
+					"Clean"
+				]
+			],
+			[
+				"Packages/Makefile/Make.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/Users/marcw/code/mymush/main.c",
+		"/Users/marcw/code/rtgame/makefile",
+		"/Users/marcw/code/rtgame/gobject.c",
+		"/Users/marcw/code/rtgame/map.c",
+		"/Users/marcw/code/rtgame/map.h",
+		"/Users/marcw/code/rtgame/cgame.h",
+		"/Users/marcw/code/rtgame/gobject.h",
+		"/Users/marcw/code/rtgame/obj.h",
+		"/usr/local/include/SDL2/SDL_rect.h",
+		"/Users/marcw/code/rtgame/main.c",
+		"/Users/marcw/code/rtgame/graphics.c",
+		"/usr/include/math.h",
+		"/Users/marcw/code/rtgame/obj.c",
+		"/Users/marcw/code/rtgame/td.c",
+		"/Users/marcw/code/mycomp/makefile",
+		"/Users/marcw/code/mycomp/main.c",
+		"/Users/marcw/code/chess/engine.c",
+		"/Users/marcw/code/chess/makefile",
+		"/Users/marcw/code/chess/chess.log",
+		"/Users/marcw/code/chess/util.c",
+		"/Users/marcw/code/chess/ui.c",
+		"/Users/marcw/code/chess/moves.c",
+		"/Users/marcw/code/chess/chess.sublime-project",
+		"/Users/marcw/code/chess/chess",
+		"/Users/marcw/code/chess/search.c",
+		"/Users/marcw/code/chess/eval.c",
+		"/Users/marcw/code/chess/chess.h",
+		"/Users/marcw/code/chess/data.c",
+		"/Users/marcw/code/chess/main.c",
+		"/Users/marcw/code/chess/.gitignore",
+		"/Users/marcw/code/8086/main.c",
+		"/Users/marcw/code/html5/webband/actions.js",
+		"/Users/marcw/code/html5/webband/webband.html",
+		"/Users/marcw/code/html5/webband/gamestate.js",
+		"/Users/marcw/code/html5/webband/main.js",
+		"/Users/marcw/code/html5/webband/player.js",
+		"/Users/marcw/code/html5/webband/db.js",
+		"/Users/marcw/code/html5/phys/phys.js",
+		"/Users/marcw/code/html5/phys/main.htm",
+		"/Users/marcw/code/dbtest/adv.py",
+		"/Users/marcw/code/aws/test1/test.py",
+		"/Users/marcw/.bash_profile",
+		"/Users/marcw/.bashrc",
+		"/Users/marcw/Downloads/15720724498.tcx",
+		"/Users/marcw/code/html5/words/main.htm",
+		"/Users/marcw/code/html5/words/words.js",
+		"/Users/marcw/Desktop/code/html5/isoadventure/main.htm"
+	],
+	"find":
+	{
+		"height": 39.0
+	},
+	"find_in_files":
+	{
+		"height": 101.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "main.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1,
+								1
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 24.0
+	},
+	"input":
+	{
+		"height": 36.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 108.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "Packages/Makefile/Make.sublime-build",
+	"project": "pymush.sublime-project",
+	"replace":
+	{
+		"height": 44.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 230.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

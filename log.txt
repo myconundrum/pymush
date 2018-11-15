@@ -1,0 +1,6 @@
+Thu Nov 15 07:30:23 2018: === Mush started.
+Thu Nov 15 07:30:23 2018: Mush: Loaded 4 users from data_users.dat.
+Thu Nov 15 07:30:23 2018: Mush: Loaded 13 objects from data_objects.dat.
+Thu Nov 15 07:30:33 2018: varen (#1) connected.
+Thu Nov 15 07:30:36 2018: varen (#1) killed the server.
+Thu Nov 15 07:30:36 2018: ==== Mush Exiting.
