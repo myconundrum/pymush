@@ -4,7 +4,8 @@ import database
 from database import ObjectFlags
 import time
 from mushstate import mush
-
+import re
+from fnmatch import fnmatch
 ## Helper functions
 
 
@@ -32,6 +33,7 @@ def findDbref(player,args):
 	args = args.strip().upper()
 	loc = player.location
 
+
 	if (args == "" or args=="HERE"):
 		return loc # assume no argument defaults to current location
 
@@ -50,7 +52,9 @@ def findDbref(player,args):
 			return d
 
 	if (args[0] == '#'):
-		return int(args[1:])
+		dbref = int(args[1:])
+		if (mush.db.validDbref(dbref)):
+			return dbref 
 
 	return None
 
@@ -150,7 +154,7 @@ def dig(player, args,ex) :
 #
 # BUGBUG No.
 def delete(player,args,ex) :
-	dbref = findDbref(args)
+	dbref = findDbref(player,args)
 	if (dbref != None): 
 		del mush.db[dbref]
 	
@@ -202,7 +206,7 @@ def attrset(player,args,attr) :
 	dbref = findDbref(player,args[0])
 
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"You don't see anything named {args} here.")
+		mush.msgDbref(player.dbref,f"You don't see anything named {args[0]} here.")
 		return
 
 	if mush.db[dbref].owner != player.dbref and not player.flags & odb.ObjectFlags.WIZARD:
@@ -210,6 +214,7 @@ def attrset(player,args,attr) :
 		return
 
 	mush.db[dbref][attr] = args[1]
+	mush.db[dbref].setAttrOwner(attr,player.dbref)
 	mush.msgDbref(player.dbref,"Set.")
 
 
@@ -275,12 +280,33 @@ def setfn(player,args,ex):
 				mush.msgDbref(player.dbref,f"Flag {flag.name} set on {mush.db[dbref].name} (#{dbref})")
 			
 
+def examineAttr(player,dbref,pattern):
+
+	pattern = pattern.upper()
+	matches = [x for x in mush.db[dbref] if fnmatch(x,pattern)]
+
+	if (len(matches)):
+		mush.msgDbref(player.dbref,"\n".join([f"{x} [#{mush.db[dbref].getAttrOwner(x)}]: {mush.db[dbref][x]}" for x in matches]))
+	else:
+		mush.msgDbref(player.dbref,"No matching attributes.")
+
+
+
+
 def examine(player,args,ex) :
 
-	dbref = findDbref(player,args)
+	# look to see if this is an attr examine command
+	args = args.split('/',1)
+
+	dbref = findDbref(player,args[0])
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"Could not find an object with id {dbref}.")
+		mush.msgDbref(player.dbref,f"Could not find an object with id {args[0]}.")
 		return
+
+	if (len(args) > 1):
+		examineAttr(player,dbref,args[1])
+		return
+
 
 	o = mush.db[dbref]
 	mush.msgDbref(player.dbref,f"{o['NAME']}(#{dbref})")
@@ -288,8 +314,12 @@ def examine(player,args,ex) :
 	mush.msgDbref(player.dbref,f"Owner: {mush.db[o.owner].name}(#{mush.db[o.owner].dbref}) Location: {mush.db[o.location].name}(#{mush.db[o.location].dbref})")
 	mush.msgDbref(player.dbref,f"Created: {time.ctime(o.creationTime)}")
 	mush.msgDbref(player.dbref,f"Modified: {time.ctime(o.lastModified)}")
-	
-	mush.msgDbref(player.dbref,"\n".join([f"{x}: {o[x]}" for x in o]))
+	if (o.flags & ObjectFlags.JUNK):
+		mush.msgDbref(player.dbref,f"Destroyed: {time.ctime(o.destroyedTime)}")
+
+
+	if ex == "ALL":
+		mush.msgDbref(player.dbref,"\n".join([f"{x} [#{o.getAttrOwner(x)}]: {o[x]}" for x in o]))
 
 def saveDb(player,args,ex):
 	mush.save(args)
@@ -299,6 +329,10 @@ def saveDb(player,args,ex):
 def loadDb(player,args,ex):
 	mush.load(args)
 	mush.msgDbref(player.dbref,f"database loaded from {args}")
+
+def think(player,args,ex):
+	mush.msgDbref(player.dbref,args)
+
 
 
 
@@ -388,7 +422,8 @@ def handleConnectingPlayer(pid,cmd,args):
 
 
 def handleInput(cmd):
-	
+
+
 	(pid,cmd,args) = cmd
 
 	# special case some commands that don't end in a whitespace.
@@ -441,9 +476,15 @@ gCommands = {
 	"@FAIL"			: {"fn" : attrset, "ex" : "FAIL"},
 	"@OFAIL"		: {"fn" : attrset, "ex" : "OFAIL"},
 	"@SET"			: {"fn" : setfn, "ex" : None},
-	"DELETE"		: {"fn" : delete, "ex" : None},
-	"EX"			: {"fn" : examine, "ex" : None},
-	"EXAMINE"		: {"fn" : examine, "ex" : None},
+	"@DESTROY"		: {"fn" : delete, "ex" : None},
+	
+	"E"				: {"fn" : examine, "ex" : "ALL"},
+	"EX"			: {"fn" : examine, "ex" : "ALL"},
+	"EXAMINE"		: {"fn" : examine, "ex" : "ALL"},
+	"BRIEF"			: {"fn" : examine, "ex" : None},
+	"BR"			: {"fn" : examine, "ex" : None},
+	"B"				: {"fn" : examine, "ex" : None},
+	
 	"LOOK"			: {"fn" : look, "ex" : None},
 	"INVENTORY"		: {"fn" : inventory, "ex" : None},
 	"I"				: {"fn" : inventory, "ex" : None},
@@ -452,5 +493,6 @@ gCommands = {
 	"GET" 			: {"fn" : take, "ex" : None},
 	"SAVE" 			: {"fn" : saveDb, "ex" : None},
 	"LOAD" 			: {"fn" : loadDb, "ex" : None},
+	"THINK"			: {"fn" : think, "ex" : None},
 }
 

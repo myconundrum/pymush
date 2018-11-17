@@ -7,7 +7,7 @@ import time
 
 _DB_VERSION = 1.00
 
-_RECYCLE_WAIT = 600000 # 10 minute wait before recycling.
+_RECYCLE_WAIT = 300 # 5 minute wait before recycling.
 
 
 NOTHING = -1
@@ -113,23 +113,23 @@ class DbObject(dict) :
 			self["DESCRIPTION"] = "You see nothing special."
 
 
-	def getEx(self,key):
-		key = key.upper()
-		if key in self:
-			return {'value': self[key],'owner:' : self.exData[f"_{key}_owner"],'flags' : self.exData[f"_{key}_flags"]}
-		else: 
-			return None
+	def getAttrOwner(self,key):
+		return self.exData[f"_{key}_owner"]
+
+	def getAttrFlags(self,key):
+		return self.exData[f"_{key}_flags"]
+
 
 	def setAttrOwner(self,key,dbref):
 		key = key.upper()
 		if key in self:
-			self.exData[f"_{key}_owner",dbref]
+			self.exData[f"_{key}_owner"]=dbref
 		self.lastModified = time.time()
 
 	def setAttrFlags(self,key,flags):
 		key = key.upper()
 		if key in self:
-			self.exData[f"_{key}_owner",flags]
+			self.exData[f"_{key}_owner"]=flags
 		self.lastModified = time.time()
 
 
@@ -281,6 +281,9 @@ class Database(list):
 		o.home = player.location
 
 		return dbref 
+
+	def validDbref(self,dbref):
+		return dbref >= 0 and dbref < self.next
 
 	def recycle(self): 
 

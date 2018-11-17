@@ -1,6 +1,6 @@
 from mushstate import mush
 from commands import handleInput
-import database
+import time
 
 
 def main():
@@ -16,6 +16,9 @@ def main():
 		cmds = mush.getCommands()
 		for c in cmds:
 			handleInput(c)
+		
+		# don't peg the cpu.
+		time.sleep(0.01)
 
 
 	

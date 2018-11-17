@@ -14,6 +14,9 @@ _LOGLEVEL=2
 
 _GODPASS = "godpass"
 
+_PERIODIC_UPDATE = 60
+
+
 class UserRecord:
 
 	def __init__(self):
@@ -38,18 +41,18 @@ class MushState:
 
 		self.logLevel = _LOGLEVEL	# what events are captured for logging
 		self.logFile = None 		# log file destination
+		self.lastPeriodic = 0
 
 
 
 
 
 	_MUSHNAME 				= "Farland"
-	_MUSHVERSIONMAJOR 		= 0
-	_MUSHVERSIONMINOR		= 1
+	_MUSHVERSION			= 0.2
 
 	_WELCOMEMSG = f"""
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
-Welcome to {_MUSHNAME} {_MUSHVERSIONMAJOR}.{_MUSHVERSIONMINOR}!					     
+Welcome to {_MUSHNAME} {_MUSHVERSION}!					     
 connect <name> : connect to existing player with name <name>        
 create <name>  : create a new player with name <name>               
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
@@ -71,6 +74,8 @@ create <name>  : create a new player with name <name>
 		# intialize object database
 		self.db  = database.Database()
 
+		self.lastPeriodic = time.time()
+
 		self.load(_BASE)
 
 	def quit(self):
@@ -87,6 +92,7 @@ create <name>  : create a new player with name <name>
 		
 		self.server.update()
 
+
 		# account for new players
 		for pid in self.server.get_new_players():
 			self.pidToDbref[pid] = -1
@@ -99,6 +105,12 @@ create <name>  : create a new player with name <name>
 
 			del self.dbrefToPid[self.pidToDbref[pid]]
 			del self.pidToDbref[pid]
+
+		if (time.time() - self.lastPeriodic > _PERIODIC_UPDATE):
+			self.log(1,"Doing periodic updates...")
+			self.db.recycle()
+			self.lastPeriodic = time.time()
+
 	
 
 
@@ -160,12 +172,10 @@ create <name>  : create a new player with name <name>
 
 	def log(self,level,msg):
 		if (level <= self.logLevel):
-			s = f"{time.asctime()}: {msg}\n"
-			print (s)
-			self.logFile.write(s)
+			print(f"{time.asctime()}: {msg}")
+			self.logFile.write(f"{time.asctime()}: {msg}\n")
 
 	def freshMush(self):
-
 
 		# Special objects cold start.
 		self.db.masterRoom = self.db._newObject()
@@ -210,7 +220,6 @@ create <name>  : create a new player with name <name>
 			self.log(0,"Mush: data files not found. Starting fresh.")
 			self.freshMush()
 			return
-
 
 		with open(f"{base}_users.dat","rb") as f:
 			self.users = pickle.load(f)
