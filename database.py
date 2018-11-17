@@ -65,7 +65,8 @@ class DbObject(dict) :
 
 		self.exData  = {}						# Extended attribute information is stored here (owner, flags, etc)
 
-		self.shortName = ""						# Name without aliases. 
+		self.name = ""							# Name without aliases. 
+		self.aliases = ""						
 	
 		self["NAME"] = "Nothing"
 		self["DESCRIPTION"] = "You see nothing special."
@@ -94,7 +95,8 @@ class DbObject(dict) :
 		self.exData[f"_{key}_flags"] = AttributeFlags.NOFLAG
 		self.lastModified = time.time()
 		if (key == "NAME"):
-			self.shortName = value.split(';',1)[0]
+			self.aliases = value.split(';')
+			self.name = self.aliases[0]
 
 
 	def __delitem__(self,key):
@@ -149,28 +151,6 @@ class Database(list):
 		self.masterRoom = NOTHING				# dbref of the master room.
 		self.playerBase = NOTHING				# dbref of the player base.
 		self.god = NOTHING 						# dbref of god.
-
-		# Special objects cold start.
-		self.masterRoom = self._newObject()
-		o = self[self.masterRoom]
-		o.dbref = self.masterRoom
-		o = self[self.masterRoom]
-		o["NAME"] = "Master Room"
-		o["DESCRIPTION"] = "Around you swirls the formless energy of infinite possibility."
-		o.owner = o.dbref 
-		o.flags = ObjectFlags.ROOM 
-		o.location = o.dbref 
-
-		# Special objects cold start.
-		self.god = self.newPlayer(self[self.masterRoom])
-		o = self[self.god]
-		o["NAME"] = "God"
-		o["DESCRIPTION"] = "The Alpha and Omega."
-		o.owner = self.god  
-		o.flags = ObjectFlags.GOD 
-		o.location = self.masterRoom 
-
-
 
 		
 
@@ -284,12 +264,13 @@ class Database(list):
 		
 		o.flags |= ObjectFlags.PLAYER 		# set the PLAYER flag on this object.
 		o.owner = dbref       				# Players are owned by themselves.
-		o.location = player.dbref 			# Use the enactor location as the default location for the player
+		
+		o.location = self.playerBase 		# Use the enactor location as the default location for the player
 		o.home = self.playerBase 			# set to player base as initial home.
 		
 		return dbref
 
-	def createExit(self,player):
+	def newExit(self,player):
 
 		dbref = self._newObject()
 		o = self[dbref]
@@ -300,8 +281,6 @@ class Database(list):
 		o.home = player.location
 
 		return dbref 
-
-
 
 	def recycle(self): 
 

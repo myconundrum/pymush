@@ -5,32 +5,18 @@ import database
 
 def main():
 
-	#mush.start()
+	mush.start()
 
-	#while mush.running:
+	while mush.running:
 		
 		# do all internal mush state updates
-		#mush.update()
+		mush.update()
 
 		# parse all commands from players
-		#cmds = mush.getCommands()
-		#for c in cmds:
-		#	handleInput(c)
+		cmds = mush.getCommands()
+		for c in cmds:
+			handleInput(c)
 
 
-	db = database.Database()
-
-	print (db)
-	print (db[0])
-	god = db[db.god]
-
-	dbref = db.newObject(god)
-	dbref = db.newObject(god)
-	del db[2]
-
-	print (db)
-	print (db.junk)
-
-	print (db[2].flags)
-
+	
 main()
