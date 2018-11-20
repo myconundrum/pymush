@@ -13,7 +13,7 @@ _LOGLEVEL=2
 _GODPASS = "godpass"
 _PERIODIC_UPDATE = 60
 _MUSHNAME 				= "Farland"
-_MUSHVERSION			= 0.2
+_MUSHVERSION			= 1.01
 
 _WELCOMEMSG = f"""
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
@@ -37,17 +37,18 @@ class MushState:
 
 	def __init__(self):
 
-		self.users = {}	 			# user/password database
+		self.users = {}	 				# user/password database
+		self.version = 	_MUSHVERSION
 
-		self.running 	= False		# is mush currently running?
-		self.pidToDbref = {}		# look up from networking pid table for connected players
-		self.dbrefToPid = {}		# look up from dbref to networking pid for connected players
+		self.running 	= False			# is mush currently running?
+		self.pidToDbref = {}			# look up from networking pid table for connected players
+		self.dbrefToPid = {}			# look up from dbref to networking pid for connected players
 
-		self.db = None 				# mush object database
-		self.server = None 			# mush networking code
+		self.db = None 					# mush object database
+		self.server = None 				# mush networking code
 
-		self.logLevel = _LOGLEVEL	# what events are captured for logging
-		self.logFile = None 		# log file destination
+		self.logLevel = _LOGLEVEL		# what events are captured for logging
+		self.logFile = None 			# log file destination
 		self.lastPeriodic = 0
 
 
@@ -188,7 +189,7 @@ class MushState:
 		o["NAME"] = "God"
 		o["DESCRIPTION"] = "The Alpha and Omega."
 		o.owner = self.db.god  
-		o.flags |= (ObjectFlags.GOD | ObjectFlags.DARK)
+		o.flags |= (ObjectFlags.GOD | ObjectFlags.DARK | ObjectFlags.WIZARD)
 		o.location = self.db.masterRoom 
 		self.db[self.db.masterRoom].contents.append(self.db.god)
 
@@ -202,34 +203,35 @@ class MushState:
 
 	def save(self,base):
 
-		with open(f"{base}_users.dat","wb") as f:
+		with open(f"{base}.dat","wb") as f:
+			pickle.dump(self.version,f)
 			pickle.dump(self.users,f,pickle.HIGHEST_PROTOCOL)
-
-		with open(f"{base}_objects.dat","wb") as f:
 			pickle.dump(self.db,f,pickle.HIGHEST_PROTOCOL)
+
 
 	def load(self,base):
 
-		if not os.path.isfile(f"{base}_users.dat"):
+		if not os.path.isfile(f"{base}.dat"):
 			self.log(0,"Mush: data files not found. Starting fresh.")
 			self.freshMush()
 			return
 
-		with open(f"{base}_objects.dat","rb") as f:
-			db = pickle.load(f)
-			if (db.version == database.latestVersion()):
+		with open(f"{base}.dat","rb") as f:
+			version 	= pickle.load(f)
+			users 		= pickle.load(f)
+			db 			= pickle.load(f)
+
+			if (version == self.version and db.version == database.latestVersion()):
 				self.db = db 
-				self.log (0,f"Mush: Loaded {len(self.db)} objects from {base}_objects.dat.")
+				self.users = users 
+				self.log (0,f"Mush: Loaded {len(self.db)} objects and {len(self.users)} users from {base}.dat.")
 			else: 
-				self.log (0,f"Mush: failed to load {base}_objects.dat. Version mismatch.")
-				self.log (0,f"File version is {db.version}. expected {self.db.version}.")
+				self.log (0,f"Mush: failed to load {base}.dat. Version mismatch.")
+				self.log (0,f"Mush version is {version} expected {self.version}")
+				self.log (0,f"DB version is {db.version}. expected {self.db.version}.")
 				self.log (0,f"Starting fresh.")
 				self.freshMush()
 				return
-
-		with open(f"{base}_users.dat","rb") as f:
-			self.users = pickle.load(f)
-			self.log (0,f"Mush: Loaded {len(self.users)} users from {base}_users.dat.")
 
 		# clear any connected flags.
 		l = [d for d in self.db if (d.flags & (ObjectFlags.PLAYER | ObjectFlags.CONNECTED))]
