@@ -1,0 +1,6 @@
+Tue Nov 20 06:34:22 2018: === Mush started.
+Tue Nov 20 06:34:22 2018: Mush: failed to load data_objects.dat. Version mismatch.
+Tue Nov 20 06:34:22 2018: File version is 1.0. expected 1.01.
+Tue Nov 20 06:34:22 2018: Starting fresh.
+Tue Nov 20 06:34:39 2018: God (#1) connected.
+Tue Nov 20 06:34:48 2018: God (#1) disconnected.

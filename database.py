@@ -5,13 +5,15 @@
 from enum import Flag, auto, Enum
 import time
 
-_DB_VERSION = 1.00
+_DB_VERSION = 1.01
 
 _RECYCLE_WAIT = 300 # 5 minute wait before recycling.
 
 
 NOTHING = -1
 
+def latestVersion():
+	return _DB_VERSION
 
 
 class ObjectFlags(Flag) :
@@ -30,6 +32,7 @@ class ObjectFlags(Flag) :
 	WIZARD 			= auto()
 	GOD 			= auto()
 	DARK			= auto()
+	ENTER_OK		= auto()
 	
 
 
@@ -53,10 +56,11 @@ class DbObject(dict) :
 												# if player or object, is the the location room
 												# if exit, points to the destination
 												# if room points to drop-to.
+
 		self.contents = []						# list of dbrefs contained in this object
 
 		self.owner = NOTHING					# owner dbref of this object
-		self.home = NOTHING 					# home for this object...
+		self.home = NOTHING 					# home for this object...note, for EXITS, this will be the originating room.
 
 		self.creationTime = time.time()			# object created...
 		self.lastModified = time.time()			# object modified...
@@ -70,10 +74,6 @@ class DbObject(dict) :
 	
 		self["NAME"] = "Nothing"
 		self["DESCRIPTION"] = "You see nothing special."
-
-
-
-
 
 
 	# This is necessary because dict has a custom pickler. Without having this __new__ and __getnewargs__ 
@@ -133,7 +133,6 @@ class DbObject(dict) :
 		self.lastModified = time.time()
 
 
-
 class Database(list):
 
 	
@@ -176,13 +175,6 @@ class Database(list):
 		if (dbref == self.masterRoom or dbref == self.god or dbref == self.playerBase):
 			return
 
-		# add to the junk list to be recycled.
-		self.junk.append(dbref)
-		o.flags |= ObjectFlags.JUNK
-
-		# remove from the contents of its location.
-		self[o.location].contents.remove(dbref)
-
 		# get rid of contents. Destroy exits, send other items to their owner or home.
 		for d in o.contents:
 			# delete exits of a deleted room.
@@ -196,6 +188,16 @@ class Database(list):
 				self[self[d].home].contents.append(d)
 
 		o.contents = []
+
+		# add to the junk list to be recycled.
+		self.junk.append(dbref)
+		o.flags |= ObjectFlags.JUNK
+
+		# remove from the contents of its location.
+		if (not o.flags & ObjectFlags.ROOM):
+			self[o.home if o.flags & ObjectFlags.EXIT else o.location].contents.remove(dbref)
+
+
 
 		# Now remove references to this room in various fields. (we don't remove softcode references)
 		for d in self[:]:

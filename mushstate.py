@@ -8,14 +8,21 @@ import pickle
 import time
 
 _BASE="data"
-
 _LOG="log.txt"
 _LOGLEVEL=2
-
 _GODPASS = "godpass"
-
 _PERIODIC_UPDATE = 60
+_MUSHNAME 				= "Farland"
+_MUSHVERSION			= 0.2
 
+_WELCOMEMSG = f"""
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
+Welcome to {_MUSHNAME} {_MUSHVERSION}!					     
+connect <name> : connect to existing player with name <name>        
+create <name>  : create a new player with name <name>               
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
+"""
+	
 
 class UserRecord:
 
@@ -44,20 +51,6 @@ class MushState:
 		self.lastPeriodic = 0
 
 
-
-
-
-	_MUSHNAME 				= "Farland"
-	_MUSHVERSION			= 0.2
-
-	_WELCOMEMSG = f"""
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
-Welcome to {_MUSHNAME} {_MUSHVERSION}!					     
-connect <name> : connect to existing player with name <name>        
-create <name>  : create a new player with name <name>               
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
-"""
-	
 
 	def start(self):
 
@@ -96,7 +89,7 @@ create <name>  : create a new player with name <name>
 		# account for new players
 		for pid in self.server.get_new_players():
 			self.pidToDbref[pid] = -1
-			self.msgPid(pid,self._WELCOMEMSG)
+			self.msgPid(pid,_WELCOMEMSG)
 
    		# account for disconnecting players
 		for pid in self.server.get_disconnected_players():
@@ -145,7 +138,7 @@ create <name>  : create a new player with name <name>
 		pid = self.dbrefToPid[dbref]
 		self.pidToDbref[pid] = -1
 		del self.dbrefToPid[dbref]
-		self.msgPid(pid,self._WELCOMEMSG)
+		self.msgPid(pid,_WELCOMEMSG)
 
 	def userExists(self,name):
 		name = name.upper()
@@ -164,7 +157,7 @@ create <name>  : create a new player with name <name>
 			if (d != ignore and self.db[d].flags & (ObjectFlags.PLAYER | ObjectFlags.CONNECTED))]
 
 		for d in l:
-			self.msgPid(self.dbrefToPid[d],msg)
+			self.msgDbref(d,msg)
 
 	def msgAll(self,msg):
 		for pid in self.pidToDbref:
@@ -195,8 +188,9 @@ create <name>  : create a new player with name <name>
 		o["NAME"] = "God"
 		o["DESCRIPTION"] = "The Alpha and Omega."
 		o.owner = self.db.god  
-		o.flags |= ObjectFlags.GOD 
+		o.flags |= (ObjectFlags.GOD | ObjectFlags.DARK)
 		o.location = self.db.masterRoom 
+		self.db[self.db.masterRoom].contents.append(self.db.god)
 
 		self.db.playerBase = self.db.newRoom(self.db[self.db.god])
 		o = self.db[self.db.playerBase]
@@ -221,13 +215,21 @@ create <name>  : create a new player with name <name>
 			self.freshMush()
 			return
 
+		with open(f"{base}_objects.dat","rb") as f:
+			db = pickle.load(f)
+			if (db.version == database.latestVersion()):
+				self.db = db 
+				self.log (0,f"Mush: Loaded {len(self.db)} objects from {base}_objects.dat.")
+			else: 
+				self.log (0,f"Mush: failed to load {base}_objects.dat. Version mismatch.")
+				self.log (0,f"File version is {db.version}. expected {self.db.version}.")
+				self.log (0,f"Starting fresh.")
+				self.freshMush()
+				return
+
 		with open(f"{base}_users.dat","rb") as f:
 			self.users = pickle.load(f)
 			self.log (0,f"Mush: Loaded {len(self.users)} users from {base}_users.dat.")
-
-		with open(f"{base}_objects.dat","rb") as f:
-			self.db = pickle.load(f)
-			self.log (0,f"Mush: Loaded {len(self.db)} objects from {base}_objects.dat.")
 
 		# clear any connected flags.
 		l = [d for d in self.db if (d.flags & (ObjectFlags.PLAYER | ObjectFlags.CONNECTED))]
