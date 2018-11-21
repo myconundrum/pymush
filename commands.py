@@ -2,6 +2,7 @@
 
 import database
 from database import ObjectFlags
+from utils import *
 import time
 from mushstate import mush
 from fnmatch import fnmatch
@@ -50,12 +51,7 @@ def moveObject(dbref,dbrefTo):
 		mush.msgLocation(to.dbref,evalAttribute(to.dbref,"OENTER",o.dbref),o.dbref)
 
 
-def aliasMatch(dbref,val):
-	val = val.upper()
-	for s in mush.db[dbref].aliases:
-		if (val == s.upper()):
-			return True
-	return False
+
 
 def objectTypeString(dbref):
 	o = mush.db[dbref]

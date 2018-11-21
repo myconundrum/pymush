@@ -9,10 +9,12 @@ import parser
 
 def main():
 
-	parser.testParse()
-	return
 
 	mush.start()
+
+	mush.db[1]["SEX"] = "male"
+	parser.testParse()
+	return
 
 	while mush.running:
 		
