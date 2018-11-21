@@ -1,9 +1,16 @@
 from mushstate import mush
 from commands import handleInput
 import time
+import re
+import parser
+
+
 
 
 def main():
+
+	parser.testParse()
+	return
 
 	mush.start()
 

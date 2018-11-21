@@ -5,17 +5,21 @@
 from enum import Flag, auto, Enum
 import time
 
-_DB_VERSION = 1.01
 
 _RECYCLE_WAIT = 300 # 5 minute wait before recycling.
 
 
 NOTHING = -1
 
+
+_DB_VERSION = 1.01
 def latestVersion():
 	return _DB_VERSION
 
-
+#
+# WARNING: If anything is done to this data structure other than appending a new flag to the end, the database version should be 
+# updated as the reloaded flag values will be incorrect.
+#
 class ObjectFlags(Flag) :
 	NOFLAG  		= 0
 
@@ -33,11 +37,9 @@ class ObjectFlags(Flag) :
 	GOD 			= auto()
 	DARK			= auto()
 	ENTER_OK		= auto()
-	
-
 
 class AttributeFlags(Flag) :
-	NOFLAG 	= 0
+	NOFLAG 			= 0
 
 
 class DbObject(dict) :
