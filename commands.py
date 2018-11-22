@@ -143,26 +143,17 @@ def semiemote(player,args,ex):
 	mush.msgLocation(player.location,f"{player.name}{args}")
 	
 def create(player,args,ex ) :
+	
 	dbref = mush.db.newObject(player)
 	mush.db[dbref]["NAME"] = args
 	mush.msgDbref(player.dbref,f"Object named {args} created with ref #{dbref}.")
 	mush.log(2,f"{player.name}(#{player.dbref}) created object named {args} (#{dbref}).")
-
-def dig(player, args,ex) :
 	
-	name = None
-	eout = None
-	eback = None
+	return dbref
 
-	# unpack command string to name and exits if they exist
-	l = args.split("=",1)
-	name = l[0].strip()
 
-	if (len(l) > 1):
-		l2 = l[1].split(",",1)
-		eout = l2[0].strip()
-		if (len(l2) > 1):
-			eback = l2[1].strip()
+def doDig (player,name,eout,eback):
+
 
 	# create room.
 	dbref = mush.db.newRoom(player)
@@ -190,6 +181,28 @@ def dig(player, args,ex) :
 		mush.msgDbref(player.dbref,f"Exit named {eback} created with ref #{dbrefExit}.")
 		mush.log(2,f"{player.name}(#{player.dbref}) dug exit named {eback} (#{dbrefExit}).")
 
+
+	return dbref
+
+
+
+def dig(player, args,ex) :
+	
+	name = None
+	eout = None
+	eback = None
+
+	# unpack command string to name and exits if they exist
+	l = args.split("=",1)
+	name = l[0].strip()
+
+	if (len(l) > 1):
+		l2 = l[1].split(",",1)
+		eout = l2[0].strip()
+		if (len(l2) > 1):
+			eback = l2[1].strip()
+
+	doDig(player,name,eout,eback)
 
 
 #

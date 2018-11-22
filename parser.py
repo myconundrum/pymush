@@ -1,9 +1,13 @@
 
 import re
 import math
+import time
 from mushstate import mush
 from database import ObjectFlags
 from utils import * 
+import commands
+import random
+
 
 
 
@@ -99,6 +103,13 @@ def numify(term):
 def nextTok(line):
 	return None if line == None else line[1:]
 
+def getObjAttr(term):
+
+	sep = term.find('/')
+	if (sep == -1):
+		return (None, None)
+	return (term[0:sep],term[sep+1:])
+
 
 def getTerms(line,enactor,obj):
 	terms = []
@@ -106,7 +117,8 @@ def getTerms(line,enactor,obj):
 	while not done:
 
 		(term,line) = eval(line,",)",enactor,obj)
-		terms.append(term)
+		if term != "":
+			terms.append(term)
 		if line == None or line[0] == ')':
 			done = True
 		 
@@ -259,6 +271,244 @@ def fnCeil(line,enactor,obj):
 	return (str(math.ceil(numify(s))),line)
 
 
+def fnCenter(line,enactor,obj):
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) < 2 or len(terms) > 3):
+		return ("#-1 Function expects 2 or 3 arguments.",line)
+	width = numify(terms[1])
+	pad = " " if len(terms) < 3 else terms[2]
+
+	return (terms[0].center(width,pad),line)
+
+
+def fnComp(line,enactor,obj):
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) != 2):
+		return ("#-1 Function expects 2 arguments.",line)
+
+	val = 0
+	if (terms[0] < terms[1]): 
+		val = -1
+	elif (terms[0] > terms[1]):
+		val = 1
+
+	return (str(val),line)
+
+
+def fnClone(line,enactor,obj):
+
+	(term,line) = getOneTerm(line,enactor,obj)
+	dbref = dbrefify(term,enactor,obj)
+	o = mush.db[dbref]
+	if (o.flags & (ObjectFlags.ROOM | ObjectFlags.PLAYER)):
+		mush.msgDbref(enactor,"You can only clone things and exits.")
+		return ("#-1",line)
+
+	# BUGBUG This is not implemented yet. Needs to be completed.
+
+def fnCon(line,enactor,obj):
+	(term,line) = getOneTerm(line,enactor,obj)
+	dbref = dbrefify(term,enactor,obj)
+	val =  -1 if len(mush.db[dbref].contents) == 0 else mush.db[dbref].contents[0]
+	return (str(val),line)
+
+def fnConvSecs(line,enactor,obj):
+	(term,line) = getOneTerm(line,enactor,obj)
+	secs = numify(term)
+	return (str(time.asctime(time.localtime(secs))),line)
+
+
+def fnOr(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	for t in terms:
+		if (boolify(t) == True):
+			return ("1",line)
+
+	return ("0",line)
+
+def fnCos(line,enactor,obj):
+	(term,line) = eval(line,")",enactor,obj)
+	rval = math.cos(numify(term))
+	line = nextTok(line)
+	return (str(rval),line)
+
+def fnCreate(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms)<1 or len(terms)>2):
+		return ("#-1 Function expects 1 or 2 arguments.",line)
+
+	dbref = mush.db.newObject(mush.db[enactor])
+	mush.db[dbref]["NAME"] = terms[0]
+	mush.msgDbref(enactor,f"Object named {terms[0]} created with ref #{dbref}.")
+	mush.log(2,f"{mush.db[enactor].name}(#{enactor}) created object named {terms[0]} (#{dbref}).")
+	return (str(dbref),line)
+
+	
+def fnCTime(line,enactor,obj):
+	(term,line) =  getOneTerm(line,enactor,obj)
+	dbref = dbrefify(term,enactor,obj)
+	return (time.ctime(mush.db[dbref].creationTime),line)
+
+
+#
+# takes a *string* as argument, and finds the last integer part and subs one from that.
+# so dec(hi3) => hi2, dec(1.2)=>1.1 
+# 
+def fnDec(line,enactor,obj):
+
+	(term,line) = getOneTerm(line,enactor,obj)
+	m = re.search(r'-?\d+$',term)
+	
+	if (m == None):
+		return ("#-1 Argument does not end in integer.",line)
+
+	return (term[0:m.start()]+str(numify(m.group())-1),line)
+
+def fnDefault(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 2:
+		return("#-1 Function exects two arguments.",line)
+
+	(dbref,attr) = getObjAttr(terms[0])
+	if (dbref == None):
+		return("#-1 Could not decode object and attribute.",line)
+
+	print (dbref,attr)
+
+	dbref = dbrefify(dbref,enactor,obj)
+	attr = attr.upper()
+	rval = mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1]
+
+	return (rval,line)
+
+def fnDelete(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 3:
+		return("#-1 Function expects three arguments.",line)
+
+	start 	= numify(terms[1])
+	length 	= numify(terms[2])
+
+	return (terms[0][0:start]+terms[0][start+length:],line)
+
+
+def fnDie(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 2:
+		return("#-1 Function expects two arguments.",line)
+
+	rolls 	= numify(terms[0])
+	sides 	= numify(terms[1])
+
+	return (str(sum([random.randint(1,sides) for x in range(rolls)])),line)
+
+	
+
+def fnDig(line,enactor,obj):
+	
+	eback = None
+	eout = None 
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) < 1 or len(terms) > 3:
+		return("#-1 Function expects one to three arguments.",line)
+
+	if (len(terms) == 3):
+		eout = terms[1]
+		eback = terms[2]
+	if (len(terms)) == 2:
+		eout = terms[1]
+
+	return (str(commands.doDig(mush.db[enactor],terms[0],eout,eback)),line)
+
+
+
+def fnDist2D(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 4:
+		return("#-1 Function expects four arguments.",line)
+
+	x1 = numify(terms[0])
+	y1 = numify(terms[1])
+	x2 = numify(terms[2])
+	y2 = numify(terms[3])
+	dist = round(math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1) * (y2 - y1)),6)
+
+	return (str(dist),line)
+
+
+def fnDist3D(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 6:
+		return("#-1 Function expects six arguments.",line)
+
+	x1 = numify(terms[0])
+	y1 = numify(terms[1])
+	z1 = numify(terms[2])
+	x2 = numify(terms[3])
+	y2 = numify(terms[4])
+	z2 = numify(terms[5])
+	dist = round(math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1)),6)
+
+	return (str(dist),line)	
+
+def fnDiv(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 2:
+		return("#-1 Function expects two arguments.",line)
+
+	a = numify(terms[0])
+	b = numify(terms[1])
+	
+	return (str(a//b),line)
+
+
+def fnE(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 0:
+		return("#-1 Function expects zero arguments.",line)
+	
+	return ("2.718281",line)
+
+def fnEDefault(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 2:
+		return("#-1 Function exects two arguments.",line)
+
+	(dbref,attr) = getObjAttr(terms[0])
+	if (dbref == None):
+		return("#-1 Could not decode object and attribute.",line)
+
+	dbref = dbrefify(dbref,enactor,obj)
+	attr = attr.upper()
+	(rval,empty) = eval(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1],"",enactor,obj)
+	return (rval,line)
+
+def fnEdit(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 3:
+		return("#-1 Function expects three arguments.",line)
+
+	if (terms[1] == '$'):
+		s = terms[0] + terms[2]
+	elif (terms[1] == '^'):
+		s = terms[2] + terms[0]
+	else:
+		s = terms[0].replace(terms[1],terms[2])
+	
+	return (s,line)
+
 
 fnList = {
 	
@@ -285,10 +535,36 @@ fnList = {
 	'CAPSTR'	: fnCapStr,
 	'CAT'		: fnCat,
 	'CEIL'		: fnCeil,
-
-
-
-
+	'CENTER'	: fnCenter,
+	'CHANGE'	: fnNotImplemented, # Elendor specific
+	'CLONE'		: fnNotImplemented,
+	'CMDS'		: fnNotImplemented,
+	'COMP'		: fnComp,
+	'CON'		: fnCon,
+	'CONN'		: fnNotImplemented,
+	'CONTROLS'	: fnNotImplemented,
+	'CONVFIRSTON': fnNotImplemented,
+	'CONVSECS'	: fnConvSecs,
+	'CONVTIME'	: fnNotImplemented,
+	'COR'		: fnOr,
+	'COS'		: fnCos,
+	'CREATE'	: fnCreate,
+	'CSTATS'	: fnNotImplemented,
+	'CTIME'		: fnCTime,
+	'DEC'		: fnDec,
+	'DECRYPT'	: fnNotImplemented,
+	'DEFAULT'	: fnDefault,
+	'DELETE'	: fnDelete,
+	'DESCFUN'	: fnNotImplemented,
+	'DIE'		: fnDie,
+	'DIG'		: fnDig,
+	'DIST2D'	: fnDist2D,
+	'DIST3D' 	: fnDist3D,
+	'DIV'		: fnDiv,
+	'DOING'		: fnNotImplemented,
+	'E'			: fnE,
+	'EDEFAULT'	: fnEDefault,
+	'EDIT'		: fnEdit,
 
 }
 
@@ -321,6 +597,32 @@ def testParse():
 		"cat(hello,world,you,crazy,place!)",
 		"ceil(64.78)",
 		"ceil(64.23)",
+		"center(Hello World,40,-)",
+		"comp(abc,abc)",
+		"comp(Abc,abc)",
+		"comp(abc,Abc)",
+		"convsecs(123456)",
+		"create(dog,30)",
+		"ctime(me)",
+		"dec(312)",
+		"dec(dog12)",
+		"dec(dog-1)",
+		"default(me/description,so weird)",
+		"default(me/yoyo,Not a yoyo here.",
+		"[delete(abcdefgh, 3, 2)]",
+		"die(10,100)",
+		"die(3,6)",
+		"dig(house)",
+		"dig(house,out,in)",
+		"dist2D(1,1,3,3)",
+		"dist3D(1,1,1,3,3,3)",
+		"div(5,2)",
+		"e()",
+		"edefault(me/yoyo,so w[e()]ird)",
+		"edit(dog house,dog,cat)",
+		"edit(dog house,$,cat)",
+		"edit(dog house,^,cat)"
+
 		]
 
 
@@ -349,7 +651,6 @@ def evalSubstitution(ch,enactor,obj):
 def eval(line,stops,enactor,obj):
 
 	rStr = ""
-
 
 	if (line == None) :
 		return ("",None)

@@ -118,6 +118,8 @@ class MushState:
 		self.users[key] 		= UserRecord()
 		self.users[key].dbref 	= dbref
 		self.users[key].hash 	= bcrypt.hashpw(password.encode('utf8'), bcrypt.gensalt())	
+		self.users[key].first 	= time.time()
+		self.users[key].last 	= time.time()
 
 		# save the network mapping tables between pid<->dbref
 		if (pid != -1):
@@ -133,6 +135,7 @@ class MushState:
 		# save the network mapping tables between pid<->dbref
 		self.pidToDbref[pid] 						= self.users[name].dbref
 		self.dbrefToPid[self.users[name].dbref] 	= pid
+		self.users[name].last = time.time()
 		return True
 
 	def disconnectUser(self,dbref):
