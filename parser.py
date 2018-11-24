@@ -7,6 +7,30 @@ from database import ObjectFlags
 from utils import * 
 import commands
 import random
+import fnmatch
+
+class Context:
+
+	def __init__(self,line,stop,enactor,obj,registers=[],escaping=False):
+		
+		self.originalline 		= line
+		
+		self.line 				= line
+		
+		self.stop 				= [stop]
+		
+		self.enactor 			= enactor
+		
+		self.obj 				= obj
+		
+		self.registers 			= registers
+		
+		self.escaping 			= escaping
+		
+
+
+
+
 
 
 
@@ -108,7 +132,7 @@ def getObjAttr(term):
 	sep = term.find('/')
 	if (sep == -1):
 		return (None, None)
-	return (term[0:sep],term[sep+1:])
+	return (term[0:sep],term[sep+1:].upper())
 
 
 def getTerms(line,enactor,obj):
@@ -509,6 +533,216 @@ def fnEdit(line,enactor,obj):
 	
 	return (s,line)
 
+def fnElement(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	# Not sure why this is what is returned in these cases, but preserved for pennmush compatibility.
+	if (len(terms) == 0):
+		return ("1",line)
+	if (len(terms) == 1):
+		return ("0",line)
+
+	l = terms[0].split(' ' if len(terms) < 3 else terms[2][0])
+	
+	c = 1
+	for item in l: 
+		if fnmatch.fnmatch(item,terms[1]):
+			return (str(c),line)
+		c+=1
+	
+	return ("0",line)
+
+
+def fnElements(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) < 2 or len(terms) > 3):
+		return ("#-1 Function expects two or three arguments.",line)
+
+	sep = terms[2][0] if len(terms) == 3 else ' '
+	elements = terms[0].split(sep)
+	indices = terms[1].split()
+	rval = []
+
+	for i in indices:
+		rval.append(elements[numify(i)-1])
+
+	return (sep.join(rval),line)
+
+def fnEmit(line,enactor,obj):
+	(term,line) = getOneTerm(line,enactor,obj)
+	mush.msgLocation(mush.db[obj].location,term)
+	return ("",line)
+
+def fnEnumerate(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+
+	sep = ' ' if len(terms) < 2 else terms[1][0]
+	connective = 'and' if len(terms) < 3 else terms[2]
+	items = terms[0].split(sep)
+
+	if len(items) < 2:
+		return (terms[0],line)
+
+	if len(items) == 2:
+		return (f"{items[0]} {connective} {items[1]}",line)
+
+	return (", ".join(items[:-1])+", " + connective + " " + items[-1],line)
+
+def fnEq(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments",line)
+
+	if (not isnum(terms[0] or not isnum(terms[1]))):
+		return ("#-1 Arguments must be numbers",line)
+
+	return ("1" if numify(terms[0]) == numify(terms[1]) else "0",line)
+
+
+def escaper(match):
+	return f"\\{match.group(0)}"
+
+def fnEscape(line,enactor,obj):
+
+
+	# call eval in special "escaping" mode
+	(term,line) = eval(line,")",enactor,obj,[],True)
+	line = nextTok(line)
+	term = "\\" + re.sub(r"[%;{}\[\]]",escaper,term)
+	
+	return (term,line)
+
+def fnEval(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments.",line)
+
+	dbref = dbrefify(terms[0],enactor,obj)
+	attr = terms[1].upper()
+	if attr in mush.db[dbref]:
+		(term,ignore) = eval(mush.db[dbref][attr],"",enactor,obj)
+		return (term,line)
+
+	return ("",line)
+
+#
+# weird functino. Based on documentation, returns the first exit for object. 
+# does so if its a room. 
+# otherwise, returns the first room in the location chain of the object.
+# for instance -- player in room X carrying object key:
+# th exit(key) -> returns dbref(X)
+#	
+def fnExit(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) == 0):
+		return ("#-1",line)
+
+	dbref = dbrefify(terms[0])
+	
+	if mush.db[dbref].flags & ObjectFlags.ROOM:
+		for o in mush.db[dbref].contents:
+			if mush.db[o].flags & ObjectFlags.EXIT:
+				return (str(o),line)
+	else:
+		while not mush.db[mush.db[dbref].location].flags & ObjectFlags.ROOM:
+			dbref = mush.db[dbref].location
+	
+	return (str(dbref),line)
+
+
+def fnExp(line,enactor,obj):
+	(term,line) = getOneTerm(line,enactor,obj)
+	return (str(round(math.exp(numify(term)),6)),line)
+
+
+def fnExtract(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+
+	if (len(terms) < 3 or len(terms) > 4):
+		return ("#-1 Function expects 3 or 4 arguments",line)
+
+
+	sep = ' ' if len(terms) < 4 else terms[3][0]
+	start = numify(terms[1]) - 1
+	length = numify(terms[2]) 
+	items = terms[0].split(sep)
+
+	return (sep.join(items[start:start+length]),line)
+
+
+def fnFDiv(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if len(terms) != 2:
+		return("#-1 Function expects two arguments.",line)
+
+	return (str(round(numify(terms[0])/numify(terms[1]),6)),line)
+
+def fnFilter(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms)<2 or len(terms) > 3):
+		return ("#-1 Function expects two or three arguments.",line)
+
+	(dbref,attr) = getObjAttr(terms[0])
+	#
+	# BUGBUG Not complete.
+	#
+	return ("",line)
+
+def fnFirst(line,enactor,obj):
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) > 2):
+		return("#-1 Function expects one or two arguments.",line)
+
+	# and empty set of arguements returns empty.
+	if (len(terms) == 0):
+		return("",line)
+
+	sep = ' ' if len(terms) != 2 else terms[1][0]
+	return (terms[0].split(sep)[0],line)
+
+
+def fnFlip(line,enactor,obj):
+	(term,line) = getOneTerm(line,enactor,obj)
+	return (term[::-1],line)
+
+def fnFloor(line,enactor,obj):
+	(s,line) = getOneTerm(line,enactor,obj)
+	return (str(math.floor(numify(s))),line)
+
+def fnForEach(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) != 2):
+		return("#-1 Function expects two arguments.",line)
+
+	(dbref,attr) = getObjAttr(terms[0])
+	if (dbref == None):
+		return("#-1 Could not decode object and attribute.",line)
+
+	dbref = dbrefify(dbref,enactor,obj)
+
+	if attr in mush.db[dbref]:
+		for letter in terms[1]:
+			rVal = ""
+			print(letter)
+			(term,ignore) = eval(mush.db[dbref][attr],"",enactor,obj,[letter])
+			rVal += term 
+	else:
+		return ("",line)
+
+	return (rVal,line)
+
 
 fnList = {
 	
@@ -565,12 +799,42 @@ fnList = {
 	'E'			: fnE,
 	'EDEFAULT'	: fnEDefault,
 	'EDIT'		: fnEdit,
+	'ELEMENT'	: fnElement,
+	'ELEM'		: fnElement,
+	'ELEMENTS'	: fnElements,
+	'ELOCK'		: fnNotImplemented,
+	'EMIT'		: fnEmit,
+	'ENCRYPT'	: fnNotImplemented,
+	'ENTRANCES'	: fnNotImplemented,
+	'ENUMERATE'	: fnEnumerate,
+	'EQ'		: fnEq,
+	'ESCAPE'	: fnEscape,
+	'EVAL'		: fnEval,
+	'EVALTHUNKS': fnNotImplemented, # Elendor specific...
+	'EXIT'		: fnExit,
+	'EXP'		: fnExp,
+	'EXTRACT'	: fnExtract,
+	'FDIV'		: fnFDiv,
+	'FILTER'	: fnFilter,
+	'FINDABLE'	: fnNotImplemented,
+	'FIRST'		: fnFirst,
+	'FLAGS'		: fnNotImplemented,
+	'FLIP'		: fnFlip,
+	'FLOOR'		: fnFloor,
+	'FOLD'		: fnNotImplemented,
+	'FORCE'		: fnNotImplemented,
+	'FOREACH'	: fnForEach,
+
+
+
 
 }
 
 def testParse():
 
-	tests = [
+	old_tests = [
+
+
 		"     abc def ghi",
 		"add(1,2,3)dog house",
 		"abs(add(-1,-5,-6))candy",
@@ -621,10 +885,43 @@ def testParse():
 		"edefault(me/yoyo,so w[e()]ird)",
 		"edit(dog house,dog,cat)",
 		"edit(dog house,$,cat)",
-		"edit(dog house,^,cat)"
+		"edit(dog house,^,cat)",
+		"elem(this is a test,is, )",
+		"element(this|is|a|test,is,|)",
+		"elem(this is a test,t?st, )",
+		"elements(Foof|Ack|Beep|Moo,3 1,|)",
+		"elements(Foo Ack Beep Moo Zot,2 4)",
+		"emit(foo)",
+		"enumerate(foo bar)",
+		"enumerate(foo bar baz)",
+		"enumerate(foo|bar|baz,|,doggie)",
+		"eq(a,b)",
+		"eq(1,2,3)",
+		"eq(2,2)",
+		"eq(2,1)",
+		"escape(hello world[ dog % ; ] { } hah!)",
+		"eval(me,description)",
+		"exp()",
+		"exp(0)",
+		"exp(1)",
+		"exp(2)",
+		"extract(a|b|c|d,2,2,|)",
+		"extract(a dog in the house went bark,2,4)",
+		"extract(a dog,4,5)",
+		"first()",
+		"first(dog house)",
+		"first(dog^house^was,^)",
+		"flip(foo bar baz)",
+		"floor(23.12)",
+		"foreach(me/addone,123456)"
 
 		]
 
+	tests = [
+		"foreach(me/addone,123456)",
+	]
+
+	mush.db[1]["ADDONE"]="add(%0,1)"
 
 	for s in tests:
 		print(f"evaluating \'{s}\': {eval(s,'',1,1)[0]}")
@@ -632,7 +929,7 @@ def testParse():
 
 
 
-def evalSubstitution(ch,enactor,obj):
+def evalSubstitution(ch,enactor,obj,registers):
 
 	if (ch == 'N'):
 		return mush.db[enactor].name
@@ -642,13 +939,77 @@ def evalSubstitution(ch,enactor,obj):
 		return ' '
 	elif (ch == '%'):
 		return '%'
+	elif (ch in '0123456789'):
+		print (f"register: {ch}")
+		print (registers)
+		return registers[int(ch)]
 
 	# BUGBUG: Need to add other substitutions
 	return ''
 
 
 
-def eval(line,stops,enactor,obj):
+def eval(ctx):
+
+	rStr = ""
+	if (ctx.line == None) :
+		return ""
+
+	# find first line...
+	ctx.line = ctx.line.strip()
+
+	# look for first term...
+	match = re.search(r'\W',ctx.line)
+	if (match):
+
+		# extract the term.
+		i = match.start()
+		term = ctx.line[0:i].upper()
+
+
+		# if the term is the name of a function, call that function, with an argument of the rest of the string.
+		if ctx.line[i]=='(' and term in fnList:
+			ctx.line = ctx.line[i+1:]
+			rStr += fnList[term](ctx) 
+		else: 
+			# Not a match, so simply add what we found so far to the results string and update the line.
+			rStr += ctx.line[0:i]
+			ctx.line = ctx.line[i:]
+
+	# Now loop through the rest of the string until we reach our stopchars or a special char.
+	pattern = re.compile(f"[{stops}\[%]") if not escaping else re.compile(f"[{stops}]")
+	while ctx.line != None:
+		match = pattern.search(ctx.line)
+		if (not match): 
+			# No more special characters until the end of the string. 
+			rStr += ctx.line 
+			ctx.line = None 
+		else:
+			i = match.start() 
+			rStr += ctx.line[:i]
+			# Check for substitution characters
+			if ctx.line[i] == '%':
+				rStr += evalSubstitution(ctx.line[i+1])
+			# check for brackets and recurse if found.
+			elif ctx.line[i] == '[':
+				(self,line,stop,enactor,obj,registers=[],escaping=False):
+		
+				newCtx = Context(ctx.line[i+1],"]",ctx.enactor,ctx.obj,ctx.registers,ctx.escaping)
+				rStr += eval(newCtx)
+				ctx.line = nextTok(newCtx.line)
+			# we must have found one of the stop chars. exit.
+			else:
+				ctx.line = ctx.line[i:]
+				break
+
+	return rStr
+
+
+
+
+def eval_old(line,stops,enactor,obj,registers = [], escaping=False):
+
+	print (f"eval: {line} stops: {stops} registers: {registers}")
 
 	rStr = ""
 
@@ -677,7 +1038,7 @@ def eval(line,stops,enactor,obj):
 			line = line[i:]
 
 	# Now loop through the rest of the string until we reach our stopchars or a special char.
-	pattern = re.compile(f"[{stops}\[%]")
+	pattern = re.compile(f"[{stops}\[%]") if not escaping else re.compile(f"[{stops}]")
 	while line != None:
 		match = pattern.search(line)
 		if (not match): 
@@ -689,18 +1050,17 @@ def eval(line,stops,enactor,obj):
 			rStr += line[:i]
 			# Check for substitution characters
 			if line[i] == '%':
-				rStr += evalSubstitution(line[i+1],enactor,obj)
+				rStr += evalSubstitution(line[i+1],enactor,obj,registers)
 				line = line[i+1:]
 			# check for brackets and recurse if found.
 			elif line[i] == '[':
-				(s,line) = eval(line[i+1:],"]",enactor,obj)
+				(s,line) = eval(line[i+1:],"]",enactor,obj,registers)
 				rStr += s
 				line = nextTok(line)
 			# we must have found one of the stop chars. exit.
 			else:
 				line = line[i:]
 				return (rStr,line)
-
 
 	return (rStr,None)
 
