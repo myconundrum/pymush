@@ -9,30 +9,15 @@ import commands
 import random
 import fnmatch
 
-class Context:
-
-	def __init__(self,line,stop,enactor,obj,registers=[],escaping=False):
-		
-		self.originalline 		= line
-		
-		self.line 				= line
-		
-		self.stop 				= [stop]
-		
-		self.enactor 			= enactor
-		
-		self.obj 				= obj
-		
-		self.registers 			= registers
-		
-		self.escaping 			= escaping
-		
 
 
+gRegisters = []
 
-
-
-
+def clearRegs():
+	global gRegisters
+	gRegisters = []
+	for x in range(10): 
+		gRegisters.append(0) 
 
 
 def dbrefify(term,enactor,obj):
@@ -131,7 +116,7 @@ def getObjAttr(term):
 
 	sep = term.find('/')
 	if (sep == -1):
-		return (None, None)
+		return (term,None)
 	return (term[0:sep],term[sep+1:].upper())
 
 
@@ -400,7 +385,6 @@ def fnDefault(line,enactor,obj):
 	if (dbref == None):
 		return("#-1 Could not decode object and attribute.",line)
 
-	print (dbref,attr)
 
 	dbref = dbrefify(dbref,enactor,obj)
 	attr = attr.upper()
@@ -612,7 +596,7 @@ def fnEscape(line,enactor,obj):
 
 
 	# call eval in special "escaping" mode
-	(term,line) = eval(line,")",enactor,obj,[],True)
+	(term,line) = eval(line,")",enactor,obj,True)
 	line = nextTok(line)
 	term = "\\" + re.sub(r"[%;{}\[\]]",escaper,term)
 	
@@ -733,15 +717,206 @@ def fnForEach(line,enactor,obj):
 	dbref = dbrefify(dbref,enactor,obj)
 
 	if attr in mush.db[dbref]:
+		rVal = ""
 		for letter in terms[1]:
-			rVal = ""
-			print(letter)
-			(term,ignore) = eval(mush.db[dbref][attr],"",enactor,obj,[letter])
+			
+			gRegisters[0] = letter
+			(term,ignore) = eval(mush.db[dbref][attr],"",enactor,obj)
 			rVal += term 
 	else:
 		return ("",line)
 
 	return (rVal,line)
+
+
+def fnFreeAttr(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) != 3):
+		return("#-1 Function expects three arguments.",line)
+
+	n = 0
+	dbref = dbrefify(terms[0],enactor,obj)
+	prefix = terms[1].upper()
+	suffix = terms[2].upper()
+	while True:
+		if not f"{prefix}{n}{suffix}" in mush.db[dbref]:
+			return (str(n),line)
+		n+=1
+
+
+	return ("-1",line)
+
+def fnFullName(line,enactor,obj):
+
+	(term,line) = getOneTerm(line,enactor,obj)
+	dbref = -1 if term == "" else dbrefify(term,enactor,obj)
+
+	return (mush.db[dbref]["NAME"],line)
+
+	
+def fnFunctions(line,enactor,obj):
+	(unused,line) = getOneTerm(line,enactor,obj)
+	return (' '.join(fnList.keys()),line)
+
+
+def fnGet(line,enactor,obj):
+
+	(term,line) = getOneTerm(line,enactor,obj)
+	if (term == ""):
+		return("#-1 Function expects one argument.",line)
+
+	(dbref,attr) = getObjAttr(term)
+	if (dbref == None):
+		return("#-1 Could not decode object and attribute.",line)
+
+	dbref = dbrefify(dbref,enactor,obj)
+	return ("" if attr not in mush.db[dbref] else mush.db[dbref][attr],line)
+
+def fnGet_Eval(line,enactor,obj):
+	
+	(term,line) = getOneTerm(line,enactor,obj)
+	if (term == ""):
+		return ("#-1 Function expects two arguments.",line)
+	(dbref,attr) = getObjAttr(term)
+	if (dbref == None):
+		return("#-1 Could not decode object and attribute.",line)
+
+	dbref = dbrefify(dbref,enactor,obj)
+	if attr in mush.db[dbref]:
+		(term,ignore) = eval(mush.db[dbref][attr],"",enactor,obj)
+		return (term,line)
+
+	return ("",line)
+
+
+def fnGrab(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) < 2 or len(terms) > 3):
+		return ("#-1 Function expects two or three arguments.",line)
+	
+	sep = terms[2][0] if len(terms) == 3 else ' '
+	elements = terms[0].split(sep)
+	pattern = terms[1]
+	
+	for item in elements: 
+		if fnmatch.fnmatch(item,pattern):
+			return (item,line)
+		
+	return ("",line)
+
+
+def fnGrabAll(line,enactor,obj):
+	
+	(terms,line) = getTerms(line,enactor,obj)
+	if (len(terms) < 2 or len(terms) > 3):
+		return ("#-1 Function expects two or three arguments.",line)
+	
+	sep = terms[2][0] if len(terms) == 3 else ' '
+	elements = terms[0].split(sep)
+	pattern = terms[1]
+	return (sep.join([x for x in elements if fnmatch.fnmatch(x,pattern)]),line)
+
+
+
+def fnGt(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments",line)
+
+	if (not isnum(terms[0] or not isnum(terms[1]))):
+		return ("#-1 Arguments must be numbers",line)
+
+	return ("1" if numify(terms[0]) > numify(terms[1]) else "0",line)
+
+
+
+def fnGte(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments",line)
+
+	if (not isnum(terms[0] or not isnum(terms[1]))):
+		return ("#-1 Arguments must be numbers",line)
+
+	return ("1" if numify(terms[0]) >= numify(terms[1]) else "0",line)
+
+
+
+def fnHasAttr(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments",line)
+
+	dbref = dbrefify(terms[0],enactor,obj)
+	return ("1" if dbref != None and terms[1].upper() in mush.db[dbref] else "0",line)
+
+
+def fnHasFlag(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments",line)
+
+	(dbref,attr) = getObjAttr(terms[0])
+	dbref = dbrefify(dbref,enactor,obj)
+
+	if (attr != None):
+		return ("#-1 function not implemented for attribute flags.")
+
+	flag = None
+	for x in ObjectFlags:
+		if (x.name  == terms[1].upper()):
+			flag = x
+			break
+
+
+	return ("1" if flag & mush.db[dbref].flags else "0",line)
+
+
+
+
+def fnHasType(line,enactor,obj):
+
+	(terms,line) = getTerms(line,enactor,obj)
+	
+	if (len(terms) != 2):
+		return ("#-1 Function expects two arguments",line)
+
+	dbref = dbrefify(terms[0],enactor,obj)
+
+	t = terms[1].upper()
+
+
+	if t not in ["ROOM","PLAYER","EXIT","THING"]:
+		return ("#-1 Unsupported type.",line)
+
+	if (t == "ROOM" and mush.db[dbref].flags & ObjectFlags.ROOM) or \
+		(t == "PLAYER" and mush.db[dbref].flags & ObjectFlags.PLAYER) or \
+		(t == "EXIT" and mush.db[dbref].flags & ObjectFlags.EXIT) or \
+		(t == "THING" and not mush.db[dbref].flags & (ObjectFlags.ROOM | Objectflags.PLAYER | ObjectFlags.EXIT)):
+		return ("1",line)
+
+	return ("0",line)
+
+
+
+
+def fnHome(line,enactor,obj):
+
+	(term,line) = getOneTerm(line,enactor,obj)
+	if (term == ""):
+		return("#-1 Function expects one argument.",line)
+	dbref = dbrefify(term,enactor,obj)
+	return (f"#{mush.db[dbref].home}",line)
 
 
 fnList = {
@@ -824,6 +999,35 @@ fnList = {
 	'FOLD'		: fnNotImplemented,
 	'FORCE'		: fnNotImplemented,
 	'FOREACH'	: fnForEach,
+	'FREEATTR'	: fnFreeAttr,
+	'FULLNAME'	: fnFullName,
+	'FUNCTIONS' : fnFunctions,
+	'GET'		: fnGet,
+	'GET_EVAL'	: fnGet_Eval,
+	'GRAB'		: fnGrab,
+	'GRABALL'	: fnGrabAll,
+	'GREP'		: fnNotImplemented,
+	'GREPI'		: fnNotImplemented,
+	'GT'		: fnGt,
+	'GTE'		: fnGte,
+	'HASATTR'	: fnHasAttr,
+	'HASATTRVAL': fnHasAttr,
+	'HASATTRP'	: fnNotImplemented,
+	'HASATTRPVAL': fnNotImplemented,
+	'HASFLAG'	: fnHasFlag,
+	'HASPOWER'	: fnNotImplemented,
+	'HASTHUNK'	: fnNotImplemented,
+	'HASTYPE'	: fnHasType,
+	'HIDDEN'	: fnNotImplemented,
+	'HILITE'	: fnNotImplemented,
+	'HOME'		: fnHome,
+	'HTMLESCAPE': fnNotImplemented,
+	'HTMLOK'	: fnNotImplemented,
+
+
+
+
+
 
 
 
@@ -832,7 +1036,7 @@ fnList = {
 
 def testParse():
 
-	old_tests = [
+	tests= [
 
 
 		"     abc def ghi",
@@ -913,23 +1117,41 @@ def testParse():
 		"first(dog^house^was,^)",
 		"flip(foo bar baz)",
 		"floor(23.12)",
-		"foreach(me/addone,123456)"
+		"add(1,1)",
+		"foreach(me/addone,123456)",
+		"freeattr(me,test,foo)",
+		"fullname(me)",
+		"functions()[fullname(me)]",
+		"get(me/nothing)",
+		"get(me/test1foo)",
+		"grab(dog|cat|horse|mouse|house|help,h*,|)",
+		"graball(dog|cat|horse|mouse|house|help,h*,|)",
+		"hasattr(dog,cat)",
+		"hasattr(me,cat)",
+		"hasattr(me,test1foo)",
+		"hasflag(me,god)",
+		"hasflag(me,eXit)",
+		"hastype(me,DOG)",
+		"hastype(me,EXIT)",
+		"hastype(me,PLAYER)",
+		"home(me)"
 
 		]
 
-	tests = [
-		"foreach(me/addone,123456)",
-	]
+
 
 	mush.db[1]["ADDONE"]="add(%0,1)"
+	mush.db[1]["TEST1FOO"]="FOOBAR"
+	mush.db[1]["TEST0FOO"]="FOOBAR"
 
 	for s in tests:
+		clearRegs()
 		print(f"evaluating \'{s}\': {eval(s,'',1,1)[0]}")
 
 
 
 
-def evalSubstitution(ch,enactor,obj,registers):
+def evalSubstitution(ch,enactor,obj):
 
 	if (ch == 'N'):
 		return mush.db[enactor].name
@@ -940,76 +1162,16 @@ def evalSubstitution(ch,enactor,obj,registers):
 	elif (ch == '%'):
 		return '%'
 	elif (ch in '0123456789'):
-		print (f"register: {ch}")
-		print (registers)
-		return registers[int(ch)]
+
+		return gRegisters[int(ch)]
 
 	# BUGBUG: Need to add other substitutions
 	return ''
 
 
 
-def eval(ctx):
 
-	rStr = ""
-	if (ctx.line == None) :
-		return ""
-
-	# find first line...
-	ctx.line = ctx.line.strip()
-
-	# look for first term...
-	match = re.search(r'\W',ctx.line)
-	if (match):
-
-		# extract the term.
-		i = match.start()
-		term = ctx.line[0:i].upper()
-
-
-		# if the term is the name of a function, call that function, with an argument of the rest of the string.
-		if ctx.line[i]=='(' and term in fnList:
-			ctx.line = ctx.line[i+1:]
-			rStr += fnList[term](ctx) 
-		else: 
-			# Not a match, so simply add what we found so far to the results string and update the line.
-			rStr += ctx.line[0:i]
-			ctx.line = ctx.line[i:]
-
-	# Now loop through the rest of the string until we reach our stopchars or a special char.
-	pattern = re.compile(f"[{stops}\[%]") if not escaping else re.compile(f"[{stops}]")
-	while ctx.line != None:
-		match = pattern.search(ctx.line)
-		if (not match): 
-			# No more special characters until the end of the string. 
-			rStr += ctx.line 
-			ctx.line = None 
-		else:
-			i = match.start() 
-			rStr += ctx.line[:i]
-			# Check for substitution characters
-			if ctx.line[i] == '%':
-				rStr += evalSubstitution(ctx.line[i+1])
-			# check for brackets and recurse if found.
-			elif ctx.line[i] == '[':
-				(self,line,stop,enactor,obj,registers=[],escaping=False):
-		
-				newCtx = Context(ctx.line[i+1],"]",ctx.enactor,ctx.obj,ctx.registers,ctx.escaping)
-				rStr += eval(newCtx)
-				ctx.line = nextTok(newCtx.line)
-			# we must have found one of the stop chars. exit.
-			else:
-				ctx.line = ctx.line[i:]
-				break
-
-	return rStr
-
-
-
-
-def eval_old(line,stops,enactor,obj,registers = [], escaping=False):
-
-	print (f"eval: {line} stops: {stops} registers: {registers}")
+def eval(line,stops,enactor,obj,escaping=False):
 
 	rStr = ""
 
@@ -1050,11 +1212,11 @@ def eval_old(line,stops,enactor,obj,registers = [], escaping=False):
 			rStr += line[:i]
 			# Check for substitution characters
 			if line[i] == '%':
-				rStr += evalSubstitution(line[i+1],enactor,obj,registers)
-				line = line[i+1:]
+				rStr += evalSubstitution(line[i+1],enactor,obj)
+				line = line[i+2:]
 			# check for brackets and recurse if found.
 			elif line[i] == '[':
-				(s,line) = eval(line[i+1:],"]",enactor,obj,registers)
+				(s,line) = eval(line[i+1:],"]",enactor,obj)
 				rStr += s
 				line = nextTok(line)
 			# we must have found one of the stop chars. exit.
