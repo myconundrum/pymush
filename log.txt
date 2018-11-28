@@ -1,7 +1,7 @@
-Sun Nov 25 16:55:05 2018: === Mush started.
-Sun Nov 25 16:55:05 2018: Mush: Loaded 4 objects and 2 users from data.dat.
-Sun Nov 25 16:55:05 2018: God(#1) created object named dog (#4).
-Sun Nov 25 16:55:05 2018: God(#1) dug room named house (#5).
-Sun Nov 25 16:55:05 2018: God(#1) dug room named house (#6).
-Sun Nov 25 16:55:05 2018: God(#1) dug exit named out (#7).
-Sun Nov 25 16:55:05 2018: God(#1) dug exit named in (#8).
+Tue Nov 27 18:59:59 2018: === Mush started.
+Tue Nov 27 18:59:59 2018: Mush: Loaded 4 objects and 2 users from data.dat.
+Tue Nov 27 18:59:59 2018: God(#1) created object named dog (#4).
+Tue Nov 27 18:59:59 2018: God(#1) dug room named house (#5).
+Tue Nov 27 18:59:59 2018: God(#1) dug room named house (#6).
+Tue Nov 27 18:59:59 2018: God(#1) dug exit named out (#7).
+Tue Nov 27 18:59:59 2018: God(#1) dug exit named in (#8).
