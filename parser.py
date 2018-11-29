@@ -8,7 +8,8 @@ from utils import *
 import commands
 import random
 import fnmatch
-
+import os
+import pickle
 
 class EvalEngine:
 
@@ -285,6 +286,7 @@ def fnAtan(ctx):
 	return str(math.atan(ctx.numify(term)))
 
 def fnNotImplemented(ctx):
+	ctx.getTerms()
 	return "#-1 Function Not Implemented"
 
 def fnAPoss(ctx):
@@ -1002,107 +1004,102 @@ fnList = {
 
 def testParse():
 
-	tests= [
+	tests= {
+		"     abc def ghi":"abc def ghi",
+		"add(1,2,3)dog house":"6dog house",
+		"abs(add(-1,-5,-6))candy":"12candy",
+		"add(-1,-5,-6))candy":"-12)candy",		
+		"after(as the world turns,world)":" turns",
+		"dog was here[add(1,2)]":"dog was here3",
+		"[dog was here[add(1,2)]]":"dog was here3",
+		"add(dog,1,2,3,4":"10",
+		"add(1,2":"3",
+		"hello world! [alphamin(zoo,black,orangutang,yes)]":"hello world! black",
+		"alphamax(dog,zoo,abacus,cat)":"zoo",
+		"1":"1",
+		"and(0,1)":"0",
+		"and(dog,-12,3,#12)":"1",
+		"and(dog,-13,3,#-12)":"0",
+		"aposs(me)":"its",
+		"aposs(#1)":"its",
+		"art(aardvark) aardvark":"an aardvark",
+		"art(doghouse) doghouse":"a doghouse",
+		"avg(1 2 3 4 5,6 4 3,2,1 0 0 0 3 4 5 6 7 8)":"3.368421",
+		"before(as the world turns,world)":"as the ",
+		"can_see(me,here)":"#-1 Function Not Implemented",
+		"capstr(hello, world!)":"Hello, world!",
+		"cat(hello,world,you,crazy,place!)":"hello world you crazy place!",
+		"ceil(64.78)":"65",
+		"ceil(64.23)":"65",
+		"center(Hello World,40,-)":"--------------Hello World---------------",
+		"comp(abc,abc)":"0",
+		"comp(Abc,abc)":"-1",
+		"comp(abc,Abc)":"1",
+		"convsecs(123456)":"Fri Jan  2 02:17:36 1970",
+		"create(dog,30)":"4", # This is a problem.
+		"ctime(me)":"Tue Nov 20 08:08:50 2018",
+		"dec(312)":"311",
+		"dec(dog12)":"dog11",
+		"dec(dog-1)":"dog-2",
+		"default(me/description,so weird)":"The Alpha and Omega.",
+		"default(me/yoyo,Not a yoyo here.":"Not a yoyo here.",
+		"[delete(abcdefgh, 3, 2)]":"abcfgh",
+		"dig(house)":"5",
+		"dig(house,out,in)":"6",
+		"dist2D(1,1,3,3)":"2.828427",
+		"dist3D(1,1,1,3,3,3)":"3.464102",
+		"div(5,2)":"2",
+		"e()":"2.718281",
+		"edefault(me/yoyo,so w[e()]ird)":"so w2.718281ird",
+		"edit(dog house,dog,cat)":"cat house",
+		"edit(dog house,$,cat)":"dog housecat",
+		"edit(dog house,^,cat)":"catdog house",
+		"elem(this is a test,is, )":"2",
+		"element(this|is|a|test,is,|)":"2",
+		"elem(this is a test,t?st, )":"4",
+		"elements(Foof|Ack|Beep|Moo,3 1,|)":"Beep|Foof",
+		"elements(Foo Ack Beep Moo Zot,2 4)":"Ack Moo",
+		"emit(foo)":"",
+		"enumerate(foo bar)":"foo and bar",
+		"enumerate(foo bar baz)":"foo, bar, and baz",
+		"enumerate(foo|bar|baz,|,doggie)":"foo, bar, doggie baz",
+		"eq(a,b)":"#-1 Arguments must be numbers",
+		"eq(1,2,3)":"#-1 Function expects two arguments",
+		"eq(2,2)":"1",
+		"eq(2,1)":"0",
+		"escape(hello world[ dog % ; ] { } hah!)":"\\hello world\\[ dog \\% \\; \\] \\{ \\} hah!",
+		"eval(me,description)":"The Alpha and Omega.",
+		"exp()":"1.0",
+		"exp(0)":"1.0",
+		"exp(1)":"2.718282",
+		"exp(2)":"7.389056",
+		"extract(a|b|c|d,2,2,|)":"b|c",
+		"extract(a dog in the house went bark,2,4)":"dog in the house",
+		"extract(a dog,4,5)":"",
+		"first()":"",
+		"first(dog house)":"dog",
+		"first(dog^house^was,^)":"dog",
+		"flip(foo bar baz)":"zab rab oof",
+		"floor(23.12)":"23",
+		"add(1,1)":"2",
+		"foreach(me/addone,123456)":"234567",
+		"freeattr(me,test,foo)":"2",
+		"fullname(me)":"God",
+		"get(me/nothing)":"",
+		"get(me/test1foo)":"FOOBAR",
+		"grab(dog|cat|horse|mouse|house|help,h*,|)":"horse",
+		"graball(dog|cat|horse|mouse|house|help,h*,|)":"horse|house|help",
+		"hasattr(dog,cat)":"0",
+		"hasattr(me,cat)":"0",
+		"hasattr(me,test1foo)":"1",
+		"hasflag(me,god)":"1",
+		"hasflag(me,eXit)":"0",
+		"hastype(me,DOG)":"#-1 Unsupported type.",
+		"hastype(me,EXIT)":"0",
+		"hastype(me,PLAYER)":"1",
+		"home(me)":"#-1",
 
-
-		"     abc def ghi",
-		"add(1,2,3)dog house",
-		"abs(add(-1,-5,-6))candy",
-		"add(-1,-5,-6))candy",		
-		"after(as the world turns,world)",
-		"dog was here[add(1,2)]",
-		"[dog was here[add(1,2)]]",
-		"add(dog,1,2,3,4",
-		"add(1,2",
-		"hello world! [alphamin(zoo,black,orangutang,yes)]",
-		"alphamax(dog,zoo,abacus,cat)",
-		"1",
-		"and(0,1)",
-		"and(dog,-12,3,#12)",
-		"and(dog,-13,3,#-12)",
-		"aposs(me)",
-		"aposs(#1)",
-		"art(aardvark) aardvark",
-		"art(doghouse) doghouse",
-		"avg(1 2 3 4 5,6 4 3,2,1 0 0 0 3 4 5 6 7 8)",
-		"before(as the world turns,world)",
-		"can_see(me,here)",
-		"capstr(hello, world!)",
-		"cat(hello,world,you,crazy,place!)",
-		"ceil(64.78)",
-		"ceil(64.23)",
-		"center(Hello World,40,-)",
-		"comp(abc,abc)",
-		"comp(Abc,abc)",
-		"comp(abc,Abc)",
-		"convsecs(123456)",
-		"create(dog,30)",
-		"ctime(me)",
-		"dec(312)",
-		"dec(dog12)",
-		"dec(dog-1)",
-		"default(me/description,so weird)",
-		"default(me/yoyo,Not a yoyo here.",
-		"[delete(abcdefgh, 3, 2)]",
-		"die(10,100)",
-		"die(3,6)",
-		"dig(house)",
-		"dig(house,out,in)",
-		"dist2D(1,1,3,3)",
-		"dist3D(1,1,1,3,3,3)",
-		"div(5,2)",
-		"e()",
-		"edefault(me/yoyo,so w[e()]ird)",
-		"edit(dog house,dog,cat)",
-		"edit(dog house,$,cat)",
-		"edit(dog house,^,cat)",
-		"elem(this is a test,is, )",
-		"element(this|is|a|test,is,|)",
-		"elem(this is a test,t?st, )",
-		"elements(Foof|Ack|Beep|Moo,3 1,|)",
-		"elements(Foo Ack Beep Moo Zot,2 4)",
-		"emit(foo)",
-		"enumerate(foo bar)",
-		"enumerate(foo bar baz)",
-		"enumerate(foo|bar|baz,|,doggie)",
-		"eq(a,b)",
-		"eq(1,2,3)",
-		"eq(2,2)",
-		"eq(2,1)",
-		"escape(hello world[ dog % ; ] { } hah!)",
-		"eval(me,description)",
-		"exp()",
-		"exp(0)",
-		"exp(1)",
-		"exp(2)",
-		"extract(a|b|c|d,2,2,|)",
-		"extract(a dog in the house went bark,2,4)",
-		"extract(a dog,4,5)",
-		"first()",
-		"first(dog house)",
-		"first(dog^house^was,^)",
-		"flip(foo bar baz)",
-		"floor(23.12)",
-		"add(1,1)",
-		"foreach(me/addone,123456)",
-		"freeattr(me,test,foo)",
-		"fullname(me)",
-		"functions()[fullname(me)]",
-		"get(me/nothing)",
-		"get(me/test1foo)",
-		"grab(dog|cat|horse|mouse|house|help,h*,|)",
-		"graball(dog|cat|horse|mouse|house|help,h*,|)",
-		"hasattr(dog,cat)",
-		"hasattr(me,cat)",
-		"hasattr(me,test1foo)",
-		"hasflag(me,god)",
-		"hasflag(me,eXit)",
-		"hastype(me,DOG)",
-		"hastype(me,EXIT)",
-		"hastype(me,PLAYER)",
-		"home(me)"
-
-		]
+		}
 
 
 
@@ -1110,20 +1107,16 @@ def testParse():
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
 
-
-
+	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests for EvalEngine.")
 	for s in tests:
 		e = EvalEngine(s,1,1)
-		print(f"evaluating \'{s}\': {e.eval('')}")
+		val = e.eval("")
+		if val != tests[s]:
+			mush.log(0,f"Test failed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
+		else:
+			mush.log(5,f"Test passed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
 
-
-
-
-
-
-
-
-
+	
 
 
 

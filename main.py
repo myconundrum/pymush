@@ -6,14 +6,16 @@ import parser
 
 
 
+def init():
+
+	mush.start()
+	parser.testParse()
+
 
 def main():
 
 
-	mush.start()
-
-	mush.db[1]["SEX"] = "male"
-	parser.testParse()
+	init()
 	return
 
 	while mush.running:

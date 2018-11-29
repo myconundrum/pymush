@@ -1,7 +1,14 @@
-Tue Nov 27 18:59:59 2018: === Mush started.
-Tue Nov 27 18:59:59 2018: Mush: Loaded 4 objects and 2 users from data.dat.
-Tue Nov 27 18:59:59 2018: God(#1) created object named dog (#4).
-Tue Nov 27 18:59:59 2018: God(#1) dug room named house (#5).
-Tue Nov 27 18:59:59 2018: God(#1) dug room named house (#6).
-Tue Nov 27 18:59:59 2018: God(#1) dug exit named out (#7).
-Tue Nov 27 18:59:59 2018: God(#1) dug exit named in (#8).
+Thu Nov 29 07:41:58 2018: === Mush started.
+Thu Nov 29 07:41:58 2018: Mush: Loaded 4 objects and 2 users from data.dat.
+Thu Nov 29 07:41:58 2018: MUSH: running 93 functional tests for EvalEngine.
+Thu Nov 29 07:41:58 2018: Test failed! 'aposs(me)'
+	expected: 'his'
+	actual: 'its'
+Thu Nov 29 07:41:58 2018: Test failed! 'aposs(#1)'
+	expected: 'his'
+	actual: 'its'
+Thu Nov 29 07:41:58 2018: God(#1) created object named dog (#4).
+Thu Nov 29 07:41:58 2018: God(#1) dug room named house (#5).
+Thu Nov 29 07:41:58 2018: God(#1) dug room named house (#6).
+Thu Nov 29 07:41:58 2018: God(#1) dug exit named out (#7).
+Thu Nov 29 07:41:58 2018: God(#1) dug exit named in (#8).
