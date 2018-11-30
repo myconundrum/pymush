@@ -25,13 +25,10 @@ class EvalEngine:
 		if self.line != None:
 			self.line = self.line[1:]
 
-
 	def getTerms(self,expectedterms = []):
 
 		terms = []
 		done = False
-
-
 		while not done:
 			term = self.eval(",)")
 			if term != "":
@@ -64,7 +61,6 @@ class EvalEngine:
 
 		# BUGBUG: Need to add other substitutions
 		return ''
-
 
 	def dbrefify(self,term):
 
@@ -114,15 +110,12 @@ class EvalEngine:
 
 		return True
 
-
-
 	def isInt(self,string):
 		try: 
 			int(string)
 			return True
 		except ValueError:
 			return False
-
 
 	def isFloat(self,string):
 	    try:
@@ -152,7 +145,6 @@ class EvalEngine:
 			return (self.dbrefify(term),None)
 		return (self.dbrefify(term[0:sep]),term[sep+1:].upper())
 
-	
 	def _eval_fn(self):
 
 		rStr = ""
@@ -163,12 +155,12 @@ class EvalEngine:
 		if (match):
 			# extract the term.
 			i = match.start()
-			term = self.line[0:i].upper()
+			term = "fn_"+self.line[0:i].lower()
 
 			# if the term is the name of a function, call that function, with an argument of the rest of the string.
-			if self.line[i]=='(' and term in fnList:
+			if self.line[i]=='(' and hasattr(gMushFunctions,term):
 				self.line = self.line[i+1:]
-				rStr += fnList[term](self)
+				rStr += getattr(gMushFunctions,term)(self)
 			else: 
 				# Not a match, so simply add what we found so far to the results string and update the line.
 				rStr += self.line[0:i]
@@ -218,10 +210,6 @@ class EvalEngine:
 
 		return rStr
 
-
-
-
-
 def evalAttribute(ctx,dbref,attr):
 
 	if attr not in mush.db[dbref]:
@@ -230,777 +218,754 @@ def evalAttribute(ctx,dbref,attr):
 		e = EvalEngine(mush.db[dbref][attr],ctx.enactor,dbref)
 		return e.eval("")
 	
+class MushFunctions():
+	def __init__(self):
+		pass
 
+	def fn_add(self,ctx):
 
+		rval = 0
+		terms = ctx.getTerms()
+		for t in terms:
+			rval += ctx.numify(t)
 
+		return str(rval)
 
-def fnAdd(ctx):
+	def fn_and(self,ctx):
 
-	rval = 0
-	terms = ctx.getTerms()
-	for t in terms:
-		rval += ctx.numify(t)
+		terms = ctx.getTerms()
+		for t in terms:
+			if (ctx.boolify(t) == False):
+				return "0"
 
-	return str(rval)
-
-def fnAnd(ctx):
-
-	terms = ctx.getTerms()
-	for t in terms:
-		if (ctx.boolify(t) == False):
-			return "0"
-
-	return "1"
-
-
-def fnAlphaMax(ctx):
-
-	words = ctx.getTerms()
-	words.sort(reverse=True)
-	return words[0]
-
-def fnAlphaMin(ctx):
-	words = ctx.getTerms()
-	words.sort()
-	return words[0]
-
-def fnAbs(ctx):
-	return str(abs(ctx.numify(ctx.getOneTerm())))
-
-
-def fnAfter(ctx):
-	terms = ctx.getTerms()
-	words = terms[0].split(terms[1],1)
-	return words[1] if len(words) > 1 else ""
-	
-def fnAcos(ctx):
-	term = ctx.getOneTerm()
-	return str(math.acos(ctx.numify(term)))
-	
-def fnAsin(ctx):
-	term = ctx.getOneTerm()
-	return str(math.asin(ctx.numify(term)))
-
-def fnAtan(ctx):
-	term = ctx.getOneTerm()
-	return str(math.atan(ctx.numify(term)))
-
-def fnNotImplemented(ctx):
-	ctx.getTerms()
-	return "#-1 Function Not Implemented"
-
-def fnAPoss(ctx):
-
-	rval = "its"
-
-	sex = evalAttribute(ctx,ctx.dbrefify(ctx.getOneTerm()),"SEX").upper()
-
-	if (sex=="MALE" or sex == "M" or sex == "MAN"):
-		rval = "his"
-	elif(sex=="FEMALE" or sex =="F" or sex == "WOMAN" ):
-		rval = "hers"
-	elif(sex == "PLURAL"):
-		rval = "theirs"
-
-	return rval
-
-def fnArt(ctx):
-	term = ctx.getOneTerm()
-	return "an" if term != None and term[0] in "AEIOUaeiou" else "a"
-	
-
-# takes up to ten lists of numbers and averages. 
-# lists are space delimited and there is a comma between each list
-def fnAvg(ctx):
-
-	rval = 0
-	count = 0
-	lists = ctx.getTerms()
-	
-	for l in lists:
-		for term in l.split(' '):
-			count += 1
-			rval += ctx.numify(term)
-
-	return str(round(rval/count,6))
-
-def fnBefore(ctx):
-	terms = ctx.getTerms()
-	words = terms[0].split(terms[1],1)
-	return words[0] if len(words) > 1 else ""
-
-def fnCapStr(ctx):
-	cap = ctx.getOneTerm()
-	return cap.capitalize() if cap != None else ""
-	
-def fnCat(ctx):
-	return " ".join(ctx.getTerms())
-
-
-def fnCeil(ctx):
-	return str(math.ceil(ctx.numify(ctx.getOneTerm())))
-
-
-def fnCenter(ctx):
-	terms = ctx.getTerms()
-	if (len(terms) < 2 or len(terms) > 3):
-		return "#-1 Function expects 2 or 3 arguments."
-
-	width = ctx.numify(terms[1])
-	pad = " " if len(terms) < 3 else terms[2]
-
-	return terms[0].center(width,pad)
-
-
-def fnComp(ctx):
-	terms = ctx.getTerms()
-	if (len(terms) != 2):
-		return "#-1 Function expects 2 arguments."
-
-	val = 0
-	if (terms[0] < terms[1]): 
-		val = -1
-	elif (terms[0] > terms[1]):
-		val = 1
-
-	return str(val)
-
-
-def fnClone(ctx):
-
-	dbref = ctx.dbrefify(ctx.getOneTerm())
-	o = mush.db[dbref]
-	if (o.flags & (ObjectFlags.ROOM | ObjectFlags.PLAYER)):
-		mush.msgDbref(enactor,"You can only clone things and exits.")
-		return "#-1"
-
-	# BUGBUG This is not implemented yet. Needs to be completed.
-
-def fnCon(ctx):
-	dbref = ctx.dbrefify(ctx.getOneTerm())
-	val =  -1 if len(mush.db[dbref].contents) == 0 else mush.db[dbref].contents[0]
-	return str(val)
-
-def fnConvSecs(ctx):
-	return str(time.asctime(time.localtime(ctx.numify(ctx.getOneTerm()))))
-
-
-def fnOr(ctx):
-	for t in ctx.getTerms():
-		if (ctx.boolify(t) == True):
-			return "1"
-
-	return "0"
-
-def fnCos(ctx):
-	return str(math.cos(ctx.numify(ctx.getOneTerm)))
-
-def fnCreate(ctx):
-
-	terms = ctx.getTerms()
-	if (len(terms)<1 or len(terms)>2):
-		return "#-1 Function expects 1 or 2 arguments."
-
-	dbref = mush.db.newObject(mush.db[ctx.enactor])
-	mush.db[dbref]["NAME"] = terms[0]
-	mush.msgDbref(ctx.enactor,f"Object named {terms[0]} created with ref #{dbref}.")
-	mush.log(2,f"{mush.db[ctx.enactor].name}(#{ctx.enactor}) created object named {terms[0]} (#{dbref}).")
-	return str(dbref)
-
-	
-def fnCTime(ctx):
-	return time.ctime(mush.db[ctx.dbrefify(ctx.getOneTerm())].creationTime)
-
-
-#
-# takes a *string* as argument, and finds the last integer part and subs one from that.
-# so dec(hi3) => hi2, dec(1.2)=>1.1 
-# 
-def fnDec(ctx):
-
-	term = ctx.getOneTerm()
-	m = re.search(r'-?\d+$',term)
-	if (m == None):
-		return "#-1 Argument does not end in integer."
-
-	return term[0:m.start()]+str(ctx.numify(m.group())-1)
-
-def fnDefault(ctx):
-
-	terms = ctx.getTerms()
-	if len(terms) != 2:
-		return "#-1 Function exects two arguments."
-
-	(dbref,attr) = ctx.getObjAttr(terms[0])
-	return mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1]
-
-def fnDelete(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 3:
-		return "#-1 Function expects three arguments."
-
-	start 	= ctx.numify(terms[1])
-	length 	= ctx.numify(terms[2])
-
-	return terms[0][0:start]+terms[0][start+length:]
-
-
-def fnDie(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 2:
-		return "#-1 Function expects two arguments."
-
-	return str(sum([random.randint(1,ctx.numify(terms[1])) for x in range(ctx.numify(terms[0]))]))
-
-
-def fnDig(ctx):
-	
-	eback = None
-	eout = None 
-
-	terms = ctx.getTerms()
-	if len(terms) < 1 or len(terms) > 3:
-		return "#-1 Function expects one to three arguments."
-
-	if (len(terms) == 3):
-		eout = terms[1]
-		eback = terms[2]
-	if (len(terms)) == 2:
-		eout = terms[1]
-
-	return str(commands.doDig(mush.db[ctx.enactor],terms[0],eout,eback))
-
-
-
-def fnDist2D(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 4:
-		return "#-1 Function expects four arguments."
-
-	x1 = ctx.numify(terms[0])
-	y1 = ctx.numify(terms[1])
-	x2 = ctx.numify(terms[2])
-	y2 = ctx.numify(terms[3])
-	return str(round(math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1) * (y2 - y1)),6))
-
-def fnDist3D(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 6:
-		return "#-1 Function expects six arguments."
-
-	x1 = ctx.numify(terms[0])
-	y1 = ctx.numify(terms[1])
-	z1 = ctx.numify(terms[2])
-	x2 = ctx.numify(terms[3])
-	y2 = ctx.numify(terms[4])
-	z2 = ctx.numify(terms[5])
-
-	return str(round(math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1)),6))
-
-def fnDiv(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 2:
-		return "#-1 Function expects two arguments."
-	
-	return str(ctx.numify(terms[0])//ctx.numify(terms[1]))
-
-
-def fnE(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 0:
-		return "#-1 Function expects zero arguments."
-	return "2.718281"
-
-def fnEDefault(ctx):
-
-	terms = ctx.getTerms()
-	if len(terms) != 2:
-		return "#-1 Function exects two arguments." 
-
-	(dbref,attr) = ctx.getObjAttr(terms[0])
-	e = EvalEngine(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1],ctx.enactor,ctx.obj)
-	return e.eval("")
-
-def fnEdit(ctx):
-	
-	terms = ctx.getTerms()
-	if len(terms) != 3:
-		return "#-1 Function expects three arguments."
-
-	if (terms[1] == '$'):
-		s = terms[0] + terms[2]
-	elif (terms[1] == '^'):
-		s = terms[2] + terms[0]
-	else:
-		s = terms[0].replace(terms[1],terms[2])
-	
-	return s
-
-def fnElement(ctx):
-	
-	terms = ctx.getTerms()
-	
-	# Not sure why this is what is returned in these cases, but preserved for pennmush compatibility.
-	if (len(terms) == 0):
 		return "1"
-	if (len(terms) == 1):
+
+	def fn_alphamax(self,ctx):
+
+		words = ctx.getTerms()
+		words.sort(reverse=True)
+		return words[0]
+
+	def fn_alphamin(self,ctx):
+		words = ctx.getTerms()
+		words.sort()
+		return words[0]
+
+	def fn_abs(self,ctx):
+		return str(abs(ctx.numify(ctx.getOneTerm())))
+
+
+	def fn_after(self,ctx):
+		terms = ctx.getTerms()
+		words = terms[0].split(terms[1],1)
+		return words[1] if len(words) > 1 else ""
+		
+	def fn_acos(self,ctx):
+		term = ctx.getOneTerm()
+		return str(math.acos(ctx.numify(term)))
+		
+	def fn_andflags(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_ansi(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_ansiif(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_atrlock(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_beep(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_can_see(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_change(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_clone(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_cmds(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_conn(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_convfirston(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_controls(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_convtime(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_cstats(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_decrypt(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_descfun(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_doing(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_elock(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_encrypt(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_entrances(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_evalthunks(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_findable(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_flags(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_fold(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_force(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_grep(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_grepi(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_hasattrp(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_hasattrpval(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_haspower(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_hasthunk(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_hidden(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_hilite(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_htmlescape(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_htmlok(self,ctx):
+		return self.fn_notimplemented(ctx)
+
+	def fn_asin(self,ctx):
+		term = ctx.getOneTerm()
+		return str(math.asin(ctx.numify(term)))
+
+	def fn_atan(self,ctx):
+		term = ctx.getOneTerm()
+		return str(math.atan(ctx.numify(term)))
+
+	def fn_notimplemented(self,ctx):
+		ctx.getTerms()
+		return "#-1 Function Not Implemented"
+
+	def fn_aposs(self,ctx):
+
+		rval = "its"
+		sex = evalAttribute(ctx,ctx.dbrefify(ctx.getOneTerm()),"SEX").upper()
+
+		if (sex=="MALE" or sex == "M" or sex == "MAN"):
+			rval = "his"
+		elif(sex=="FEMALE" or sex =="F" or sex == "WOMAN" ):
+			rval = "hers"
+		elif(sex == "PLURAL"):
+			rval = "theirs"
+
+		return rval
+
+	def fn_art(self,ctx):
+		term = ctx.getOneTerm()
+		return "an" if term != None and term[0] in "AEIOUaeiou" else "a"
+		
+	# takes up to ten lists of numbers and averages. 
+	# lists are space delimited and there is a comma between each list
+	def fn_avg(self,ctx):
+
+		rval = 0
+		count = 0
+		lists = ctx.getTerms()
+		
+		for l in lists:
+			for term in l.split(' '):
+				count += 1
+				rval += ctx.numify(term)
+
+		return str(round(rval/count,6))
+
+	def fn_before(self,ctx):
+		terms = ctx.getTerms()
+		words = terms[0].split(terms[1],1)
+		return words[0] if len(words) > 1 else ""
+
+	def fn_capstr(self,ctx):
+		cap = ctx.getOneTerm()
+		return cap.capitalize() if cap != None else ""
+		
+	def fn_cat(self,ctx):
+		return " ".join(ctx.getTerms())
+
+	def fn_ceil(self,ctx):
+		return str(math.ceil(ctx.numify(ctx.getOneTerm())))
+
+	def fn_center(self,ctx):
+		terms = ctx.getTerms()
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects 2 or 3 arguments."
+
+		width = ctx.numify(terms[1])
+		pad = " " if len(terms) < 3 else terms[2]
+
+		return terms[0].center(width,pad)
+
+	def fn_comp(self,ctx):
+		terms = ctx.getTerms()
+		if (len(terms) != 2):
+			return "#-1 Function expects 2 arguments."
+
+		val = 0
+		if (terms[0] < terms[1]): 
+			val = -1
+		elif (terms[0] > terms[1]):
+			val = 1
+
+		return str(val)
+
+	def fn_clone(self,ctx):
+
+		dbref = ctx.dbrefify(ctx.getOneTerm())
+		o = mush.db[dbref]
+		if (o.flags & (ObjectFlags.ROOM | ObjectFlags.PLAYER)):
+			mush.msgDbref(enactor,"You can only clone things and exits.")
+			return "#-1"
+		# BUGBUG This is not implemented yet. Needs to be completed.
+
+	def fn_con(self,ctx):
+		dbref = ctx.dbrefify(ctx.getOneTerm())
+		val =  -1 if len(mush.db[dbref].contents) == 0 else mush.db[dbref].contents[0]
+		return str(val)
+
+	def fn_convsecs(self,ctx):
+		return str(time.asctime(time.localtime(ctx.numify(ctx.getOneTerm()))))
+
+	def fn_or(self,ctx):
+		for t in ctx.getTerms():
+			if (ctx.boolify(t) == True):
+				return "1"
+
 		return "0"
 
-	c = 1
-	for item in terms[0].split(' ' if len(terms) < 3 else terms[2][0]): 
-		if fnmatch.fnmatch(item,terms[1]):
-			return str(c)
-		c+=1
+	def fn_cos(self,ctx):
+		return str(math.cos(ctx.numify(ctx.getOneTerm)))
+
+	def fn_create(self,ctx):
+
+		terms = ctx.getTerms()
+		if (len(terms)<1 or len(terms)>2):
+			return "#-1 Function expects 1 or 2 arguments."
+
+		dbref = mush.db.newObject(mush.db[ctx.enactor])
+		mush.db[dbref]["NAME"] = terms[0]
+		mush.msgDbref(ctx.enactor,f"Object named {terms[0]} created with ref #{dbref}.")
+		mush.log(2,f"{mush.db[ctx.enactor].name}(#{ctx.enactor}) created object named {terms[0]} (#{dbref}).")
+		return str(dbref)
 	
-	return "0"
+	def fn_ctime(self,ctx):
+		return time.ctime(mush.db[ctx.dbrefify(ctx.getOneTerm())].creationTime)
 
+	#
+	# takes a *string* as argument, and finds the last integer part and subs one from that.
+	# so dec(hi3) => hi2, dec(1.2)=>1.1 
+	# 
+	def fn_dec(self,ctx):
 
-def fnElements(ctx):
-	
-	terms = ctx.getTerms()
-	
-	if (len(terms) < 2 or len(terms) > 3):
-		return "#-1 Function expects two or three arguments."
+		term = ctx.getOneTerm()
+		m = re.search(r'-?\d+$',term)
+		if (m == None):
+			return "#-1 Argument does not end in integer."
 
-	sep = terms[2][0] if len(terms) == 3 else ' '
-	elements = terms[0].split(sep)
-	indices = terms[1].split()
-	rval = []
+		return term[0:m.start()]+str(ctx.numify(m.group())-1)
 
-	for i in indices:
-		rval.append(elements[ctx.numify(i)-1])
+	def fn_default(self,ctx):
 
-	return sep.join(rval)
+		terms = ctx.getTerms()
+		if len(terms) != 2:
+			return "#-1 Function exects two arguments."
 
-def fnEmit(ctx):
-	mush.msgLocation(mush.db[ctx.obj].location,ctx.getOneTerm())
-	return ""
+		(dbref,attr) = ctx.getObjAttr(terms[0])
+		return mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1]
 
-def fnEnumerate(ctx):
-	
-	terms = ctx.getTerms()
+	def fn_delete(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 3:
+			return "#-1 Function expects three arguments."
 
-	sep = ' ' if len(terms) < 2 else terms[1][0]
-	connective = 'and' if len(terms) < 3 else terms[2]
-	items = terms[0].split(sep)
+		start 	= ctx.numify(terms[1])
+		length 	= ctx.numify(terms[2])
 
-	if len(items) < 2:
-		return terms[0]
+		return terms[0][0:start]+terms[0][start+length:]
 
-	if len(items) == 2:
-		return f"{items[0]} {connective} {items[1]}"
+	def fn_die(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 2:
+			return "#-1 Function expects two arguments."
 
-	return ", ".join(items[:-1])+", " + connective + " " + items[-1]
+		return str(sum([random.randint(1,ctx.numify(terms[1])) for x in range(ctx.numify(terms[0]))]))
 
-def fnEq(ctx):
+	def fn_dig(self,ctx):
+		
+		eback = None
+		eout = None 
+		terms = ctx.getTerms()
+		if len(terms) < 1 or len(terms) > 3:
+			return "#-1 Function expects one to three arguments."
 
-	terms = ctx.getTerms()	
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
+		if (len(terms) == 3):
+			eout = terms[1]
+			eback = terms[2]
+		if (len(terms)) == 2:
+			eout = terms[1]
 
-	if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
-		return "#-1 Arguments must be numbers"
+		return str(commands.doDig(mush.db[ctx.enactor],terms[0],eout,eback))
 
-	return "1" if ctx.numify(terms[0]) == ctx.numify(terms[1]) else "0"
+	def fn_dist2d(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 4:
+			return "#-1 Function expects four arguments."
 
+		x1 = ctx.numify(terms[0])
+		y1 = ctx.numify(terms[1])
+		x2 = ctx.numify(terms[2])
+		y2 = ctx.numify(terms[3])
+		return str(round(math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1) * (y2 - y1)),6))
 
-def escaper(match):
-	return f"\\{match.group(0)}"
+	def fn_dist3d(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 6:
+			return "#-1 Function expects six arguments."
 
-def fnEscape(ctx):
-	# call eval in special "escaping" mode
-	term = ctx.eval(")",True)
-	ctx.nextTok()
-	return "\\" + re.sub(r"[%;{}\[\]]",escaper,term)
+		x1 = ctx.numify(terms[0])
+		y1 = ctx.numify(terms[1])
+		z1 = ctx.numify(terms[2])
+		x2 = ctx.numify(terms[3])
+		y2 = ctx.numify(terms[4])
+		z2 = ctx.numify(terms[5])
 
-def fnEval(ctx):
-	
-	terms = ctx.getTerms()	
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
+		return str(round(math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1)),6))
 
+	def fn_div(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 2:
+			return "#-1 Function expects two arguments."
+		
+		return str(ctx.numify(terms[0])//ctx.numify(terms[1]))
 
-	dbref = ctx.dbrefify(terms[0])
-	attr = terms[1].upper()
-	if attr in mush.db[dbref]:
-		e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+	def fn_e(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 0:
+			return "#-1 Function expects zero arguments."
+		return "2.718281"
+
+	def fn_edefault(self,ctx):
+
+		terms = ctx.getTerms()
+		if len(terms) != 2:
+			return "#-1 Function exects two arguments." 
+
+		(dbref,attr) = ctx.getObjAttr(terms[0])
+		e = EvalEngine(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1],ctx.enactor,ctx.obj)
 		return e.eval("")
 
-	return ""
+	def fn_edit(self,ctx):
+		
+		terms = ctx.getTerms()
+		if len(terms) != 3:
+			return "#-1 Function expects three arguments."
 
-#
-# weird functino. Based on documentation, returns the first exit for object. 
-# does so if its a room. 
-# otherwise, returns the first room in the location chain of the object.
-# for instance -- player in room X carrying object key:
-# th exit(key) -> returns dbref(X)
-#	
-def fnExit(ctx):
+		if (terms[1] == '$'):
+			s = terms[0] + terms[2]
+		elif (terms[1] == '^'):
+			s = terms[2] + terms[0]
+		else:
+			s = terms[0].replace(terms[1],terms[2])
+		
+		return s
 
-	terms = ctx.getTerms()
-	if (len(terms) == 0):
-		return "#-1"
+	def fn_elem(self,ctx):
+		return self.fn_element(ctx)
 
-	dbref = ctx.dbrefify(terms[0])
-	
-	if mush.db[dbref].flags & ObjectFlags.ROOM:
-		for o in mush.db[dbref].contents:
-			if mush.db[o].flags & ObjectFlags.EXIT:
-				return str(o)
-	else:
-		while not mush.db[mush.db[dbref].location].flags & ObjectFlags.ROOM:
-			dbref = mush.db[dbref].location
-	
-	return str(dbref)
+	def fn_element(self,ctx):
+		
+		terms = ctx.getTerms()
+		
+		# Not sure why this is what is returned in these cases, but preserved for pennmush compatibility.
+		if (len(terms) == 0):
+			return "1"
+		if (len(terms) == 1):
+			return "0"
 
-
-def fnExp(ctx):
-	return str(round(math.exp(ctx.numify(ctx.getOneTerm())),6))
-
-
-def fnExtract(ctx):
-	
-	terms = ctx.getTerms()
-	if (len(terms) < 3 or len(terms) > 4):
-		return "#-1 Function expects 3 or 4 arguments"
+		c = 1
+		for item in terms[0].split(' ' if len(terms) < 3 else terms[2][0]): 
+			if fnmatch.fnmatch(item,terms[1]):
+				return str(c)
+			c+=1
+		
+		return "0"
 
 
-	sep = ' ' if len(terms) < 4 else terms[3][0]
-	start = ctx.numify(terms[1]) - 1
-	length = ctx.numify(terms[2]) 
-	items = terms[0].split(sep)
+	def fn_elements(self,ctx):
+		
+		terms = ctx.getTerms()
+		
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
 
-	return sep.join(items[start:start+length])
+		sep = terms[2][0] if len(terms) == 3 else ' '
+		elements = terms[0].split(sep)
+		indices = terms[1].split()
+		rval = []
 
+		for i in indices:
+			rval.append(elements[ctx.numify(i)-1])
 
-def fnFDiv(ctx):
-	terms = ctx.getTerms()
-	if len(terms) != 2:
-		return "#-1 Function expects two arguments."
+		return sep.join(rval)
 
-	return str(round(ctx.numify(terms[0])/ctx.numify(terms[1]),6))
-
-def fnFilter(ctx):
-
-	terms = ctx.getTerms()
-	if (len(terms)<2 or len(terms) > 3):
-		return "#-1 Function expects two or three arguments."
-
-	(dbref,attr) = ctx.getObjAttr(terms[0])
-	#
-	# BUGBUG Not complete.
-	#
-	return ""
-
-def fnFirst(ctx):
-
-	terms = ctx.getTerms()
-	if (len(terms) > 2):
-		return "#-1 Function expects one or two arguments."
-
-	# and empty set of arguements returns empty.
-	if (len(terms) == 0):
+	def fn_emit(self,ctx):
+		mush.msgLocation(mush.db[ctx.obj].location,ctx.getOneTerm())
 		return ""
 
-	sep = ' ' if len(terms) != 2 else terms[1][0]
-	return terms[0].split(sep)[0]
+	def fn_enumerate(self,ctx):
+		
+		terms = ctx.getTerms()
+
+		sep = ' ' if len(terms) < 2 else terms[1][0]
+		connective = 'and' if len(terms) < 3 else terms[2]
+		items = terms[0].split(sep)
+
+		if len(items) < 2:
+			return terms[0]
+
+		if len(items) == 2:
+			return f"{items[0]} {connective} {items[1]}"
+
+		return ", ".join(items[:-1])+", " + connective + " " + items[-1]
+
+	def fn_eq(self,ctx):
+
+		terms = ctx.getTerms()	
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+
+		if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
+			return "#-1 Arguments must be numbers"
+
+		return "1" if ctx.numify(terms[0]) == ctx.numify(terms[1]) else "0"
 
 
-def fnFlip(ctx):
-	return ctx.getOneTerm()[::-1]
+	def escaper(self,match):
+		return f"\\{match.group(0)}"
 
-def fnFloor(ctx):
-	return str(math.floor(ctx.numify(ctx.getOneTerm())))
+	def fn_escape(self,ctx):
+		# call eval in special "escaping" mode
+		term = ctx.eval(")",True)
+		ctx.nextTok()
+		return "\\" + re.sub(r"[%;{}\[\]]",self.escaper,term)
 
-def fnForEach(ctx):
+	def fn_eval(self,ctx):
+		
+		terms = ctx.getTerms()	
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
 
-	terms = ctx.getTerms()
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments."
-	(dbref,attr) = ctx.getObjAttr(terms[0])
-	
-	rVal = ""
-	if attr in mush.db[dbref]:
-		for letter in terms[1]:
+
+		dbref = ctx.dbrefify(terms[0])
+		attr = terms[1].upper()
+		if attr in mush.db[dbref]:
 			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
-			e.registers[0] = letter
-			rVal += e.eval("")
+			return e.eval("")
 
-	return rVal
+		return ""
 
+	#
+	# weird functino. Based on documentation, returns the first exit for object. 
+	# does so if its a room. 
+	# otherwise, returns the first room in the location chain of the object.
+	# for instance -- player in room X carrying object key:
+	# th exit(key) -> returns dbref(X)
+	#	
+	def fn_exit(self,ctx):
 
-def fnFreeAttr(ctx):
-	
-	terms = ctx.getTerms()
-	if (len(terms) != 3):
-		return "#-1 Function expects three arguments."
+		terms = ctx.getTerms()
+		if (len(terms) == 0):
+			return "#-1"
 
-	n = 0
-	dbref = ctx.dbrefify(terms[0])
-	prefix = terms[1].upper()
-	suffix = terms[2].upper()
-	while True:
-		if not f"{prefix}{n}{suffix}" in mush.db[dbref]:
-			return str(n)
-		n+=1
-
-
-	return "-1"
-
-def fnFullName(ctx):
-	return mush.db[ctx.dbrefify(ctx.getOneTerm())]["NAME"]
-
-def fnFunctions(ctx):
-	ctx.getOneTerm()
-	return ' '.join(fnList.keys())
-
-def fnGet(ctx):
-
-	term  = ctx.getOneTerm()
-	if (term == ""):
-		return "#-1 Function expects one argument."
-
-	(dbref,attr) = ctx.getObjAttr(term)
-
-	return "" if attr not in mush.db[dbref] else mush.db[dbref][attr]
-
-def fnGet_Eval(ctx):
-	
-	term = ctx.getOneTerm()
-	if (term == ""):
-		return "#-1 Function expects two arguments."
-	(dbref,attr) = ctx.getObjAttr(term)
-	
-	if attr in mush.db[dbref]:
-		e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
-		return e.eval("")
+		dbref = ctx.dbrefify(terms[0])
 		
-	return ""
-
-
-def fnGrab(ctx):
-	
-	terms = ctx.getTerms()
-	if (len(terms) < 2 or len(terms) > 3):
-		return "#-1 Function expects two or three arguments."
-
-	sep = terms[2][0] if len(terms) == 3 else ' '
-	elements = terms[0].split(sep)
-	pattern = terms[1]
-	
-	for item in elements: 
-		if fnmatch.fnmatch(item,pattern):
-			return item
+		if mush.db[dbref].flags & ObjectFlags.ROOM:
+			for o in mush.db[dbref].contents:
+				if mush.db[o].flags & ObjectFlags.EXIT:
+					return str(o)
+		else:
+			while not mush.db[mush.db[dbref].location].flags & ObjectFlags.ROOM:
+				dbref = mush.db[dbref].location
 		
-	return ""
+		return str(dbref)
 
 
-def fnGrabAll(ctx):
+	def fn_exp(self,ctx):
+		return str(round(math.exp(ctx.numify(ctx.getOneTerm())),6))
 
-	terms = ctx.getTerms()
-	if (len(terms) < 2 or len(terms) > 3):
-		return "#-1 Function expects two or three arguments."
-	
-	sep = terms[2][0] if len(terms) == 3 else ' '
-	elements = terms[0].split(sep)
-	pattern = terms[1]
-	
-	return  sep.join([x for x in elements if fnmatch.fnmatch(x,pattern)])
+	def fn_extract(self,ctx):
+		
+		terms = ctx.getTerms()
+		if (len(terms) < 3 or len(terms) > 4):
+			return "#-1 Function expects 3 or 4 arguments"
+
+		sep = ' ' if len(terms) < 4 else terms[3][0]
+		start = ctx.numify(terms[1]) - 1
+		length = ctx.numify(terms[2]) 
+		items = terms[0].split(sep)
+
+		return sep.join(items[start:start+length])
+
+	def fn_fdiv(self,ctx):
+		terms = ctx.getTerms()
+		if len(terms) != 2:
+			return "#-1 Function expects two arguments."
+
+		return str(round(ctx.numify(terms[0])/ctx.numify(terms[1]),6))
+
+	def fn_filter(self,ctx):
+
+		terms = ctx.getTerms()
+		if (len(terms)<2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
+
+		(dbref,attr) = ctx.getObjAttr(terms[0])
+		#
+		# BUGBUG Not complete.
+		#
+		return ""
+
+	def fn_first(self,ctx):
+
+		terms = ctx.getTerms()
+		if (len(terms) > 2):
+			return "#-1 Function expects one or two arguments."
+
+		# and empty set of arguements returns empty.
+		if (len(terms) == 0):
+			return ""
+
+		sep = ' ' if len(terms) != 2 else terms[1][0]
+		return terms[0].split(sep)[0]
 
 
+	def fn_flip(self,ctx):
+		return ctx.getOneTerm()[::-1]
 
-def fnGt(ctx):
-	
-	terms = ctx.getTerms()
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
+	def fn_floor(self,ctx):
+		return str(math.floor(ctx.numify(ctx.getOneTerm())))
 
-	if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
-		return "#-1 Arguments must be numbers"
+	def fn_foreach(self,ctx):
 
-	return "1" if ctx.numify(terms[0]) > ctx.numify(terms[1]) else "0"
+		terms = ctx.getTerms()
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
+		(dbref,attr) = ctx.getObjAttr(terms[0])
+		
+		rVal = ""
+		if attr in mush.db[dbref]:
+			for letter in terms[1]:
+				e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+				e.registers[0] = letter
+				rVal += e.eval("")
 
-def fnGte(ctx):
+		return rVal
 
-	terms = ctx.getTerms()
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
+	def fn_freeattr(self,ctx):
+		
+		terms = ctx.getTerms()
+		if (len(terms) != 3):
+			return "#-1 Function expects three arguments."
 
-	if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
-		return "#-1 Arguments must be numbers"
+		n = 0
+		dbref = ctx.dbrefify(terms[0])
+		prefix = terms[1].upper()
+		suffix = terms[2].upper()
+		while True:
+			if not f"{prefix}{n}{suffix}" in mush.db[dbref]:
+				return str(n)
+			n+=1
 
-	return "1" if ctx.numify(terms[0]) >= ctx.numify(terms[1]) else "0"
+		return "-1"
 
-def fnHasAttr(ctx):
+	def fn_fullname(self,ctx):
+		return mush.db[ctx.dbrefify(ctx.getOneTerm())]["NAME"]
 
-	terms = ctx.getTerms()
-	
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
-	dbref = ctx.dbrefify(terms[0])
-	return "1" if dbref != None and terms[1].upper() in mush.db[dbref] else "0"
+	def fn_functions(self,ctx):
+		ctx.getOneTerm()
+		return ' '.join(fnList.keys())
 
-def fnHasFlag(ctx):
+	def fn_get(self,ctx):
 
-	terms = ctx.getTerms()
-	
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
+		term  = ctx.getOneTerm()
+		if (term == ""):
+			return "#-1 Function expects one argument."
 
-	(dbref,attr) = ctx.getObjAttr(terms[0])
+		(dbref,attr) = ctx.getObjAttr(term)
 
-	if (attr != None):
-		return ("#-1 function not implemented for attribute flags.")
+		return "" if attr not in mush.db[dbref] else mush.db[dbref][attr]
 
-	flag = None
-	for x in ObjectFlags:
-		if (x.name  == terms[1].upper()):
-			flag = x
-			break
+	def fn_get_eval(self,ctx):
+		
+		term = ctx.getOneTerm()
+		if (term == ""):
+			return "#-1 Function expects two arguments."
+		(dbref,attr) = ctx.getObjAttr(term)
+		
+		if attr in mush.db[dbref]:
+			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+			return e.eval("")
+			
+		return ""
 
-	return "1" if flag & mush.db[dbref].flags else "0"
+	def fn_grab(self,ctx):
+		
+		terms = ctx.getTerms()
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
 
-def fnHasType(ctx):
+		sep = terms[2][0] if len(terms) == 3 else ' '
+		elements = terms[0].split(sep)
+		pattern = terms[1]
+		
+		for item in elements: 
+			if fnmatch.fnmatch(item,pattern):
+				return item
+			
+		return ""
 
-	terms = ctx.getTerms()
-	
-	if (len(terms) != 2):
-		return "#-1 Function expects two arguments"
+	def fn_graball(self,ctx):
 
-	dbref = ctx.dbrefify(terms[0])
-	t = terms[1].upper()
+		terms = ctx.getTerms()
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
+		
+		sep = terms[2][0] if len(terms) == 3 else ' '
+		elements = terms[0].split(sep)
+		pattern = terms[1]
+		
+		return  sep.join([x for x in elements if fnmatch.fnmatch(x,pattern)])
 
-	if t not in ["ROOM","PLAYER","EXIT","THING"]:
-		return  "#-1 Unsupported type."
+	def fn_gt(self,ctx):
+		
+		terms = ctx.getTerms()
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
 
-	if (t == "ROOM" and mush.db[dbref].flags & ObjectFlags.ROOM) or \
-		(t == "PLAYER" and mush.db[dbref].flags & ObjectFlags.PLAYER) or \
-		(t == "EXIT" and mush.db[dbref].flags & ObjectFlags.EXIT) or \
-		(t == "THING" and not mush.db[dbref].flags & (ObjectFlags.ROOM | Objectflags.PLAYER | ObjectFlags.EXIT)):
-		return "1"
+		if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
+			return "#-1 Arguments must be numbers"
 
-	return "0"
+		return "1" if ctx.numify(terms[0]) > ctx.numify(terms[1]) else "0"
 
-def fnHome(ctx):
+	def fn_gte(self,ctx):
 
-	term = ctx.getOneTerm()
-	if (term == ""):
-		return "#-1 Function expects one argument."
+		terms = ctx.getTerms()
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
 
-	return f"#{mush.db[ctx.dbrefify(term)].home}"
+		if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
+			return "#-1 Arguments must be numbers"
 
-fnList = {
-	
-	'ADD'		: fnAdd,
-	'ABS'		: fnAbs,
-	'ACOS'		: fnAcos,
-	'AFTER'		: fnAfter,
-	'ALPHAMAX'	: fnAlphaMax,
-	'ALPHAMIN'  : fnAlphaMin,
-	'AND'		: fnAnd,
-	'ANDFLAGS'	: fnNotImplemented,
-	'ANSI'		: fnNotImplemented,
-	'ANSIIF'	: fnNotImplemented,
-	'APOSS'		: fnAPoss,
-	'ART'		: fnArt,
-	'ASIN'		: fnAsin,
-	'ATAN'		: fnAtan,
-	'ATRLOCK'	: fnNotImplemented,
-	'AVG'		: fnAvg,
-	'BEEP'		: fnNotImplemented,
-	'BEFORE'	: fnBefore,
-	'CAND'		: fnAnd,
-	'CAN_SEE'	: fnNotImplemented,
-	'CAPSTR'	: fnCapStr,
-	'CAT'		: fnCat,
-	'CEIL'		: fnCeil,
-	'CENTER'	: fnCenter,
-	'CHANGE'	: fnNotImplemented, # Elendor specific
-	'CLONE'		: fnNotImplemented,
-	'CMDS'		: fnNotImplemented,
-	'COMP'		: fnComp,
-	'CON'		: fnCon,
-	'CONN'		: fnNotImplemented,
-	'CONTROLS'	: fnNotImplemented,
-	'CONVFIRSTON': fnNotImplemented,
-	'CONVSECS'	: fnConvSecs,
-	'CONVTIME'	: fnNotImplemented,
-	'COR'		: fnOr,
-	'COS'		: fnCos,
-	'CREATE'	: fnCreate,
-	'CSTATS'	: fnNotImplemented,
-	'CTIME'		: fnCTime,
-	'DEC'		: fnDec,
-	'DECRYPT'	: fnNotImplemented,
-	'DEFAULT'	: fnDefault,
-	'DELETE'	: fnDelete,
-	'DESCFUN'	: fnNotImplemented,
-	'DIE'		: fnDie,
-	'DIG'		: fnDig,
-	'DIST2D'	: fnDist2D,
-	'DIST3D' 	: fnDist3D,
-	'DIV'		: fnDiv,
-	'DOING'		: fnNotImplemented,
-	'E'			: fnE,
-	'EDEFAULT'	: fnEDefault,
-	'EDIT'		: fnEdit,
-	'ELEMENT'	: fnElement,
-	'ELEM'		: fnElement,
-	'ELEMENTS'	: fnElements,
-	'ELOCK'		: fnNotImplemented,
-	'EMIT'		: fnEmit,
-	'ENCRYPT'	: fnNotImplemented,
-	'ENTRANCES'	: fnNotImplemented,
-	'ENUMERATE'	: fnEnumerate,
-	'EQ'		: fnEq,
-	'ESCAPE'	: fnEscape,
-	'EVAL'		: fnEval,
-	'EVALTHUNKS': fnNotImplemented, # Elendor specific...
-	'EXIT'		: fnExit,
-	'EXP'		: fnExp,
-	'EXTRACT'	: fnExtract,
-	'FDIV'		: fnFDiv,
-	'FILTER'	: fnFilter,
-	'FINDABLE'	: fnNotImplemented,
-	'FIRST'		: fnFirst,
-	'FLAGS'		: fnNotImplemented,
-	'FLIP'		: fnFlip,
-	'FLOOR'		: fnFloor,
-	'FOLD'		: fnNotImplemented,
-	'FORCE'		: fnNotImplemented,
-	'FOREACH'	: fnForEach,
-	'FREEATTR'	: fnFreeAttr,
-	'FULLNAME'	: fnFullName,
-	'FUNCTIONS' : fnFunctions,
-	'GET'		: fnGet,
-	'GET_EVAL'	: fnGet_Eval,
-	'GRAB'		: fnGrab,
-	'GRABALL'	: fnGrabAll,
-	'GREP'		: fnNotImplemented,
-	'GREPI'		: fnNotImplemented,
-	'GT'		: fnGt,
-	'GTE'		: fnGte,
-	'HASATTR'	: fnHasAttr,
-	'HASATTRVAL': fnHasAttr,
-	'HASATTRP'	: fnNotImplemented,
-	'HASATTRPVAL': fnNotImplemented,
-	'HASFLAG'	: fnHasFlag,
-	'HASPOWER'	: fnNotImplemented,
-	'HASTHUNK'	: fnNotImplemented,
-	'HASTYPE'	: fnHasType,
-	'HIDDEN'	: fnNotImplemented,
-	'HILITE'	: fnNotImplemented,
-	'HOME'		: fnHome,
-	'HTMLESCAPE': fnNotImplemented,
-	'HTMLOK'	: fnNotImplemented,
+		return "1" if ctx.numify(terms[0]) >= ctx.numify(terms[1]) else "0"
 
-}
+	def fn_hasattr(self,ctx):
+
+		terms = ctx.getTerms()
+		
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+		dbref = ctx.dbrefify(terms[0])
+		return "1" if dbref != None and terms[1].upper() in mush.db[dbref] else "0"
+
+	def fn_hasflag(self,ctx):
+
+		terms = ctx.getTerms()
+		
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+
+		(dbref,attr) = ctx.getObjAttr(terms[0])
+
+		if (attr != None):
+			return ("#-1 function not implemented for attribute flags.")
+
+		flag = None
+		for x in ObjectFlags:
+			if (x.name  == terms[1].upper()):
+				flag = x
+				break
+
+		return "1" if flag & mush.db[dbref].flags else "0"
+
+	def fn_hastype(self,ctx):
+
+		terms = ctx.getTerms()
+		
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+
+		dbref = ctx.dbrefify(terms[0])
+		t = terms[1].upper()
+
+		if t not in ["ROOM","PLAYER","EXIT","THING"]:
+			return  "#-1 Unsupported type."
+
+		if (t == "ROOM" and mush.db[dbref].flags & ObjectFlags.ROOM) or \
+			(t == "PLAYER" and mush.db[dbref].flags & ObjectFlags.PLAYER) or \
+			(t == "EXIT" and mush.db[dbref].flags & ObjectFlags.EXIT) or \
+			(t == "THING" and not mush.db[dbref].flags & (ObjectFlags.ROOM | Objectflags.PLAYER | ObjectFlags.EXIT)):
+			return "1"
+
+		return "0"
+
+	def fn_home(self,ctx):
+
+		term = ctx.getOneTerm()
+		if (term == ""):
+			return "#-1 Function expects one argument."
+
+		return f"#{mush.db[ctx.dbrefify(term)].home}"
+
+gMushFunctions = MushFunctions()
 
 def testParse():
 
@@ -1101,8 +1066,6 @@ def testParse():
 
 		}
 
-
-
 	mush.db[1]["ADDONE"]="add(%0,1)"
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
@@ -1115,8 +1078,3 @@ def testParse():
 			mush.log(0,f"Test failed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
 		else:
 			mush.log(5,f"Test passed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
-
-	
-
-
-
