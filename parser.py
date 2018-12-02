@@ -13,20 +13,27 @@ import pickle
 
 class EvalEngine:
 
-	def __init__(self,line,enactor,obj):
+	def __init__(self,line,enactor,obj,listelem="",listpos=-1):
 
-		self.registers = ["0","0","0","0","0","0","0","0","0","0"]
-		self.enactor = enactor
-		self.obj     = obj
-		self.line    = line
-		self.originalLine = line
+		self.registers 		= ["0","0","0","0","0","0","0","0","0","0"]
+		self.enactor 		= enactor
+		self.obj     		= obj
+		self.line    		= line
+		self.originalLine	= line
+		#
+		# listelem and listpos if specified are used for 
+		# list replacements (a la iter() and etc) if specified.
+		# 
+		self.listElem 		= listelem
+		self.listPos 		= listpos
+
+		self.termsMatch 	= re.compile("[\[\]\(\),]")
 
 	def nextTok(self):
 		if self.line != None:
 			self.line = self.line[1:]
 
-	def getTerms(self,expectedterms = []):
-
+	def getTerms(self):
 		terms = []
 		done = False
 		while not done:
@@ -39,13 +46,41 @@ class EvalEngine:
 			
 		return terms
 
-
-
-	def getOneTerm(self):
-		
+	def getOneTerm(self):		
 		term = self.eval(")")
 		self.nextTok()
 		return term
+
+
+
+	def splitTerms(self,s):
+
+		terms 		= []
+		plevel 		= 1
+		blevel 		= 0
+		i 			= 0
+		termStart 	= 0
+
+		while (plevel or blevel) and i < len(s):
+			if s[i] == ')':
+				plevel -=1
+				if (plevel == 0):
+					terms.append(s[termStart:i])
+			elif s[i] == '(':
+				plevel +=1
+			elif s[i] == ']':
+				blevel -=1
+			elif s[i] == '[':
+				blevel +=1
+			elif (s[i] == ',' and plevel == 1 and blevel == 0):
+				terms.append(s[termStart:i])
+				termStart = i+1
+			i+=1
+		
+		if (i == len(s)):
+			terms.append(s[termStart:])
+
+		return terms
 	
 	def evalSubstitutions(self,ch):
 		if (ch == 'N'):
@@ -61,6 +96,15 @@ class EvalEngine:
 
 		# BUGBUG: Need to add other substitutions
 		return ''
+
+
+	def evalListSubstitutions(self,ch):
+
+		if (ch == '#'):
+			return self.listElem
+		elif (ch =='@'):
+			return str(self.listPos) 
+		return f"#{ch}"
 
 	def dbrefify(self,term):
 
@@ -145,6 +189,27 @@ class EvalEngine:
 			return (self.dbrefify(term),None)
 		return (self.dbrefify(term[0:sep]),term[sep+1:].upper())
 
+	def _get_fn_terms(self):
+
+		plevel 	= 1
+		blevel 	= 0
+		i 		= 1
+		while (plevel or blevel) and i < len(self.line):
+			if self.line[i] == ')':
+				plevel -=1
+			elif self.line[i] == '(':
+				plevel +=1
+			elif self.line[i] == ']':
+				blevel -=1
+			elif self.line[i] == '[':
+				blevel +=1
+			i+=1
+
+
+		term = self.line[1:i-1] if i < len(self.line) else self.line[1:]
+		self.line = self.line[i:] if i < len(self.line) else ""
+		return term
+
 	def _eval_fn(self):
 
 		rStr = ""
@@ -155,18 +220,36 @@ class EvalEngine:
 		if (match):
 			# extract the term.
 			i = match.start()
-			term = "fn_"+self.line[0:i].lower()
+			term = "fn_"+self.line[:i].lower()
 
 			# if the term is the name of a function, call that function, with an argument of the rest of the string.
 			if self.line[i]=='(' and hasattr(gMushFunctions,term):
-				self.line = self.line[i+1:]
-				rStr += getattr(gMushFunctions,term)(self)
+				self.line = self.line[i:]
+				terms = self._get_fn_terms()
+				rStr += getattr(gMushFunctions,term)(self,terms)
 			else: 
 				# Not a match, so simply add what we found so far to the results string and update the line.
 				rStr += self.line[0:i]
 				self.line = self.line[i:]
 
 		return rStr
+
+	# instead of continuing with current line, evaluates a different string with the same context.
+	def stringEval(self,s,stops="",escaping=False):
+		return EvalEngine(s,self.enactor,self.obj,self.listElem,self.listPos).eval(stops,escaping)
+
+	def evalTerms(self,terms):
+		results = []
+		for term in self.splitTerms(terms):
+			results.append(self.stringEval(term))
+
+		return results
+
+	def evalOneTerm(self,term):
+
+		return self.stringEval(term)
+
+
 
 	def eval(self,stops,escaping=False):
 		
@@ -180,8 +263,8 @@ class EvalEngine:
 		rStr += self._eval_fn()
 
 		# Now loop through the rest of the string until we reach our stopchars or a special char.
-		pattern = re.compile(f"[{stops}\[%]") if not escaping else re.compile(f"[{stops}]")
-
+		specialchars = "\[%#]" if self.listPos != -1 else "\[%]"
+		pattern = re.compile(f"[{stops}{specialchars}") if not escaping else re.compile(f"[{stops}]")
 
 		while self.line != None:
 
@@ -197,9 +280,13 @@ class EvalEngine:
 				if self.line[i] == '%':
 					rStr += self.evalSubstitutions(self.line[i+1])
 					self.line = self.line[i+2:]
+				# Check for list element substitutions if they are specified.
+				elif self.line[i] == '#':
+					rStr += self.evalListSubstitutions(self.line[i+1])
+					self.line = self.line[i+2:]
 				# check for brackets and recurse if found.
 				elif self.line[i] == '[':
-					e = EvalEngine(self.line[i+1:],self.enactor,self.obj)
+					e = EvalEngine(self.line[i+1:],self.enactor,self.obj,self.listElem,self.listPos)
 					rStr += e.eval("]")
 					self.line = e.line[1:]
 				
@@ -215,18 +302,17 @@ def evalAttribute(ctx,dbref,attr):
 	if attr not in mush.db[dbref]:
 		return ""
 	else:
-		e = EvalEngine(mush.db[dbref][attr],ctx.enactor,dbref)
+		e = EvalEngine(mush.db[dbref][attr],ctx.enactor,dbref,ctx.listElem,ctx.listPos)
 		return e.eval("")
 	
 class MushFunctions():
 	def __init__(self):
 		pass
 
-	def fn_add(self,ctx):
+	def fn_add(self,ctx,terms):
 
 		rval = 0
-		terms = ctx.getTerms()
-		for t in terms:
+		for t in ctx.evalTerms(terms):
 			rval += ctx.numify(t)
 
 		return str(rval)
@@ -237,7 +323,6 @@ class MushFunctions():
 		for t in terms:
 			if (ctx.boolify(t) == False):
 				return "0"
-
 		return "1"
 
 	def fn_alphamax(self,ctx):
@@ -251,8 +336,9 @@ class MushFunctions():
 		words.sort()
 		return words[0]
 
-	def fn_abs(self,ctx):
-		return str(abs(ctx.numify(ctx.getOneTerm())))
+	def fn_abs(self,ctx,terms):
+	
+		return str(abs(ctx.numify(ctx.evalOneTerm(terms))))
 
 
 	def fn_after(self,ctx):
@@ -600,7 +686,7 @@ class MushFunctions():
 			return "#-1 Function exects two arguments." 
 
 		(dbref,attr) = ctx.getObjAttr(terms[0])
-		e = EvalEngine(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1],ctx.enactor,ctx.obj)
+		e = EvalEngine(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
 		return e.eval("")
 
 	def fn_edit(self,ctx):
@@ -624,7 +710,6 @@ class MushFunctions():
 	def fn_element(self,ctx):
 		
 		terms = ctx.getTerms()
-		
 		# Not sure why this is what is returned in these cases, but preserved for pennmush compatibility.
 		if (len(terms) == 0):
 			return "1"
@@ -643,7 +728,6 @@ class MushFunctions():
 	def fn_elements(self,ctx):
 		
 		terms = ctx.getTerms()
-		
 		if (len(terms) < 2 or len(terms) > 3):
 			return "#-1 Function expects two or three arguments."
 
@@ -708,7 +792,7 @@ class MushFunctions():
 		dbref = ctx.dbrefify(terms[0])
 		attr = terms[1].upper()
 		if attr in mush.db[dbref]:
-			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
 			return e.eval("")
 
 		return ""
@@ -804,7 +888,7 @@ class MushFunctions():
 		rVal = ""
 		if attr in mush.db[dbref]:
 			for letter in terms[1]:
-				e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+				e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
 				e.registers[0] = letter
 				rVal += e.eval("")
 
@@ -852,7 +936,7 @@ class MushFunctions():
 		(dbref,attr) = ctx.getObjAttr(term)
 		
 		if attr in mush.db[dbref]:
-			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
 			return e.eval("")
 			
 		return ""
@@ -919,7 +1003,6 @@ class MushFunctions():
 	def fn_hasflag(self,ctx):
 
 		terms = ctx.getTerms()
-		
 		if (len(terms) != 2):
 			return "#-1 Function expects two arguments"
 
@@ -939,7 +1022,6 @@ class MushFunctions():
 	def fn_hastype(self,ctx):
 
 		terms = ctx.getTerms()
-		
 		if (len(terms) != 2):
 			return "#-1 Function expects two arguments"
 
@@ -965,6 +1047,155 @@ class MushFunctions():
 
 		return f"#{mush.db[ctx.dbrefify(term)].home}"
 
+
+	def fn_idle(self,ctx):
+
+		dbref = ctx.dbrefify(ctx.getTerms()[0])
+		if not mush.db.validDbref(dbref) or not mush.db[dbref].flags & ObjectFlags.CONNECTED:
+			return "-1"
+		return int(mush.server.get_client_idle(mush.dbreftoPid[dbref]))
+
+	def fn_idlesecs(self,ctx):
+		return self.fn_idle(ctx)
+
+	def fn_if(self,ctx):
+
+		terms = ctx.getTerms()
+		if (len(terms) != 2 and len(terms) != 3):
+			return "#-1 Function expects two or three arguments"
+
+		if (len(terms) == 2):
+			terms.append("")
+
+		return terms[1] if ctx.boolify(terms[0]) else terms[2]
+
+	def fn_ifelse(self,ctx):
+		return self.fn_if(ctx)
+
+	def fn_inc(self,ctx):
+
+		term = ctx.getOneTerm()
+		m = re.search(r'-?\d+$',term)
+		if (m == None):
+			return "#-1 Argument does not end in integer."
+
+		return term[0:m.start()]+str(ctx.numify(m.group())+1)
+
+
+#
+# Awful hack here. The parser doesn't like empty arguments like (<term>, ,<term>)
+# the ,<space>, above will not be returned as a term even though its valid ehre.
+# Probably this should be fixed.
+#
+	def fn_index(self,ctx):
+
+		terms = ctx.getTerms()
+# HACK HERE
+		if (len(terms) < 3):
+			return ""
+		if (len(terms) < 4):
+			terms.insert(1," ")
+	
+		sep = terms[1]
+		start = ctx.numify(terms[2]) - 1
+		length = ctx.numify(terms[3]) 
+		items = terms[0].split(sep)
+
+		return sep.join(items[start:start+length])
+
+
+	def fn_inlist(self,ctx):
+
+		terms = ctx.getTerms()
+
+		# this is for pennmush compat. 
+		if (len(terms) == 0):
+			return "1"
+		if (len(terms) == 1):
+			return "0"
+
+		sep = " " if len(terms) < 3 else terms[2]
+		return "1" if terms[1] in terms[0].split(sep) else "0"
+
+
+	def fn_insert(self,ctx):
+
+		terms = ctx.getTerms()
+		if (len(terms) != 3 and len(terms) !=4):
+			return "#-1 Function expects three or four arguments."
+
+		sep = " " if len(terms) == 3 else terms[3][0]
+		index = ctx.numify(terms[1]) -1
+		items = terms[0].split(sep)
+
+		if (index > -1 and index < len(items)):
+			items.insert(index,terms[2])
+
+		return sep.join(items)
+
+	def fn_invoke(self,ctx):
+		return self.fn_notimplemented()
+
+	def fn_isdaylight(self,ctx):
+		return self.fn_notimplemented()
+
+	def fn_isdbref(self,ctx):
+		term = ctx.getOneTerm()
+		if term[0] != '#':
+			return "0"
+		if not ctx.isnum(term[1:]):
+			return "0"
+		return "1" if mush.db.validDbref(ctx.numify(term[1:])) else "0"
+
+	def fn_isnum(self,ctx):
+		return "1" if ctx.isInt(ctx.getOneTerm()) else "0"
+
+
+	def fn_isword(self,ctx):
+		return "1" if ctx.getOneTerm().isalpha() else "0"
+
+	def fn_items(self,ctx):
+		return self.fn_words(ctx)
+
+	def fn_words(self,ctx):
+		terms = ctx.getTerms()
+		if len(terms) == 0:
+			return "0"
+		if len(terms) > 2:
+			return "#-1 Function expects two or three arguments."
+
+		sep = " " if len(terms) == 1 else terms[1][0]
+		return str(len(terms[0].split(sep)))
+
+
+	def fn_iter(self,ctx,terms):
+		
+		print(terms)
+		print(ctx.splitTerms(terms))
+		#terms = ctx.termify(terms)
+		if (len(terms) < 2 or len(terms) > 4):
+			return "#-1 Function expects between two and four arguments."
+
+		sep = " " if len(terms) < 3 else terms[2][0]
+		osep = " " if len(terms) < 4 else terms[3][0]
+		items = terms[0].split(sep)
+
+		rlist = []
+		n = 1
+		for item in items: 
+			e = EvalEngine(terms[1],ctx.enactor,ctx.obj,item,n)
+			print(terms[1])
+			rlist.append(e.eval(''))
+			n+=1
+
+		return osep.join(rlist)
+
+
+
+
+#
+# The MushFunctions class is simply a container so we can have a safe place to do hasattr/getattr from text strings in the mush.
+# 
 gMushFunctions = MushFunctions()
 
 def testParse():
@@ -974,11 +1205,12 @@ def testParse():
 		"add(1,2,3)dog house":"6dog house",
 		"abs(add(-1,-5,-6))candy":"12candy",
 		"add(-1,-5,-6))candy":"-12)candy",		
-		"after(as the world turns,world)":" turns",
 		"dog was here[add(1,2)]":"dog was here3",
 		"[dog was here[add(1,2)]]":"dog was here3",
 		"add(dog,1,2,3,4":"10",
 		"add(1,2":"3",
+		}
+	otests={	"after(as the world turns,world)":" turns",
 		"hello world! [alphamin(zoo,black,orangutang,yes)]":"hello world! black",
 		"alphamax(dog,zoo,abacus,cat)":"zoo",
 		"1":"1",
@@ -1063,18 +1295,45 @@ def testParse():
 		"hastype(me,EXIT)":"0",
 		"hastype(me,PLAYER)":"1",
 		"home(me)":"#-1",
+		"if(dog,true,false)":"true",
+		"if(#-12,true,false)":"false",
+		"if(-12,true,false)":"true",
+		"inc(dog2)":"dog3",
+		"inc(dog-1":"dog0",
+		"index(a|b|c|d,|,2,2)":"b|c",
+		"index(a dog in the house went bark, ,2,4)":"dog in the house",
+		"index(a dog, ,4,5)":"",
+		"inlist()":"1",
+		"inlist(dog)":"0",
+		"inlist(a dog was here,not":"0",
+		"[inlist(a|dog|was,was,|)]":"1",
+		"[insert(This is a string,4,test)]":"This is a test string",
+		"[insert(one|three|four|five,2,two,|)]":"one|two|three|four|five",
+		"isdbref(#-12)":"0",
+		"isdbref(#1)":"1",
+		"isnum(dog)":"0",
+		"isnum(1)":"1",
+		"isnum(-1)":"1",
+		"isword(dog)":"1",
+		"isword(dog3)":"0",
+		"words(a b c d e f)":"6",
+		"words(a|b|c|d|e|f,|)":"6",
+		"words()":"0",
+		#"iter(a b c d e f,##)":"a b c d e f",
+		#"iter(a b c d e f,###@)":"a1 b2 c3 d4 e5 f6",
+		"[iter(1|2|3|4|5,add2(##,add2(##,1)),|)]Hello World!":"3 5 7 9 11Hello World!",
 
 		}
 
 	mush.db[1]["ADDONE"]="add(%0,1)"
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
-
 	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests for EvalEngine.")
+
 	for s in tests:
 		e = EvalEngine(s,1,1)
 		val = e.eval("")
 		if val != tests[s]:
 			mush.log(0,f"Test failed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
 		else:
-			mush.log(5,f"Test passed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
+			mush.log(1,f"Test passed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")

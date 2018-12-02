@@ -36,6 +36,9 @@ class MudServer(object):
         # the last time we checked if the client was still connected
         lastcheck = 0
 
+        # the last time we received data from this client.
+        lastdata = 0
+
         def __init__(self, socket, address, buffer, lastcheck):
             self.socket = socket
             self.address = address
@@ -125,6 +128,11 @@ class MudServer(object):
         # 'get_commands'. The previous events are discarded
         self._events = list(self._new_events)
         self._new_events = []
+
+    def get_client_idle(self,pid):
+        """Returns the seconds since a command was last receieved from this client.
+        """
+        return time.time() - self._clients[pid].lastdata
 
     def get_new_players(self):
         """Returns a list containing info on any new players that have
@@ -305,6 +313,8 @@ class MudServer(object):
                     # player's id number, the command and its parameters
                     self._new_events.append((self._EVENT_COMMAND, id,
                                              command.lower(), params))
+
+                    cl.lastdata = time.time()
 
             # if there is a problem reading from the socket (e.g. the client
             # has disconnected) a socket error will be raised
