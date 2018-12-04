@@ -11,11 +11,13 @@ import fnmatch
 import os
 import pickle
 
+
 class EvalEngine:
 
 	def __init__(self,line,enactor,obj,listelem="",listpos=-1):
 
 		self.registers 		= ["0","0","0","0","0","0","0","0","0","0"]
+		
 		self.enactor 		= enactor
 		self.obj     		= obj
 		self.line    		= line
@@ -26,12 +28,6 @@ class EvalEngine:
 		# 
 		self.listElem 		= listelem
 		self.listPos 		= listpos
-
-		self.termsMatch 	= re.compile("[\[\]\(\),]")
-
-	def nextTok(self):
-		if self.line != None:
-			self.line = self.line[1:]
 
 	def splitTerms(self,s):
 
@@ -214,10 +210,10 @@ class EvalEngine:
 		return rStr
 
 	# instead of continuing with current line, evaluates a different string with the same context.
-	def stringEval(self,s,stops="",escaping=False):
+	def stringEval(self,s):
 		e = EvalEngine(s,self.enactor,self.obj,self.listElem,self.listPos)
 		e.registers = self.registers
-		return e.eval(stops,escaping)
+		return e.eval("")
 
 	def evalTerms(self,terms):
 		results = []
@@ -228,7 +224,7 @@ class EvalEngine:
 	def evalOneTerm(self,term):
 		return self.stringEval(term)
 
-	def eval(self,stops,escaping=False):
+	def eval(self,stops):
 		
 		rStr = ""
 
@@ -241,7 +237,7 @@ class EvalEngine:
 
 		# Now loop through the rest of the string until we reach our stopchars or a special char.
 		specialchars = "\[%#]" if self.listPos != -1 else "\[%]"
-		pattern = re.compile(f"[{stops}{specialchars}") if not escaping else re.compile(f"[{stops}]")
+		pattern = re.compile(f"[{stops}{specialchars}") 
 
 		while self.line != None:
 
@@ -736,7 +732,6 @@ class MushFunctions():
 		return f"\\{match.group(0)}"
 
 	def fn_escape(self,ctx,terms):
-		# call eval in special "escaping" mode
 		return "\\" + re.sub(r"[%;{}\[\]]",self.escaper,terms)
 
 	def fn_eval(self,ctx,terms):
@@ -892,13 +887,8 @@ class MushFunctions():
 		if (term == ""):
 			return "#-1 Function expects two arguments."
 		(dbref,attr) = ctx.getObjAttr(term)
-		
-		if attr in mush.db[dbref]:
-			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
-			return e.eval("")
+		return ctx.evalString(mush.db[dbref][attr]) if attr in mush.db[dbref] else ""
 			
-		return ""
-
 	def fn_grab(self,ctx,terms):
 		
 		terms = ctx.evalTerms(terms)
@@ -1040,6 +1030,8 @@ class MushFunctions():
 		return term[0:m.start()]+str(ctx.numify(m.group())+1)
 
 
+
+
 #
 # Awful hack here. The parser doesn't like empty arguments like (<term>, ,<term>)
 # the ,<space>, above will not be returned as a term even though its valid ehre.
@@ -1146,6 +1138,226 @@ class MushFunctions():
 		return osep.join(rlist)
 
 
+	def fn_lang(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_last(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms) > 2):
+			return "#-1 Function expects one or two arguments."
+
+		# and empty set of arguements returns empty.
+		if (len(terms) == 0):
+			return ""
+
+		sep = ' ' if len(terms) != 2 else terms[1][0]
+		return terms[0].split(sep)[-1]
+
+
+	def fn_lattr(self,ctx,terms):
+
+		(dbref,pattern) = ctx.getObjAttr(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No match."
+
+		pattern = "*" if pattern == "" or pattern == None else pattern
+		keys = [x for x in mush.db[dbref] if fnmatch.fnmatch(x,pattern)]
+		
+		if len(keys) == 0:
+			return "#-1 No match."
+		
+		return " ".join(keys)
+
+
+	def fn_lcon(self,ctx,terms):
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		return "#-1" if not mush.db.validDbref(dbref) else " ".join([f"#{x}" for x in mush.db[dbref].contents])
+
+	def fn_lcstr(self,ctx,terms):
+		return ctx.evalOneTerm(terms).lower()
+
+
+	def fn_loc(self,ctx,terms):
+		if (terms==""):
+			return "#-1"
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		return "#-1" if not mush.db.validDbref(dbref) else f"#{mush.db[dbref].location}"
+
+
+
+	def fn_locate(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+
+	def fn_lock(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_log(self,ctx,terms):
+		return str(round(math.log(ctx.numify(ctx.evalOneTerm(terms))),6))
+
+	def fn_lparent(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_lsearch(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_lsearchr(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_lstats(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_lt(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+
+		if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
+			return "#-1 Arguments must be numbers"
+
+		return "1" if ctx.numify(terms[0]) < ctx.numify(terms[1]) else "0"
+
+
+	def fn_lte(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+
+		if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
+			return "#-1 Arguments must be numbers"
+
+		return "1" if ctx.numify(terms[0]) <= ctx.numify(terms[1]) else "0"
+
+
+	def fn_lwho(self,ctx,terms):
+		#
+		# no work done to implement the "see who an object can see mode"
+		#
+		return " ".join(["#"+str(x) for x in mush.dbrefToPid])
+
+
+	def fn_map(self,ctx,terms):
+		
+		terms = ctx.evalTerms(terms)
+		
+		sep = " " if len(terms) < 3 else terms[2][0]
+		items = terms[1].split(sep)
+
+		if terms[0].find('/') != -1:
+			(dbref,attr) = ctx.getObjAttr(terms[0])
+		else:
+			dbref = ctx.enactor
+			attr = terms[0].upper()
+
+		if not mush.db.validDbref(dbref) or attr not in mush.db[dbref]:
+			return ""
+
+		rlist = []
+		for item in items: 
+			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+			e.registers[0] = item
+			rlist.append(e.eval(''))
+	
+		return sep.join(rlist)
+
+
+	def fn_match(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
+		sep = " " if len(terms) == 2 else terms[2][0]
+
+		i = 1
+		for item in terms[0].split(sep):
+			if fnmatch.fnmatch(item,terms[1]):
+				return str(i)
+			i += 1
+
+		return "0"
+
+
+	def fn_member(self,ctx,terms):
+		return self.fn_match(ctx,terms)
+
+	def fn_matchall(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
+		sep = " " if len(terms) == 2 else terms[2][0]
+
+		i = 1
+		results = []
+		for item in terms[0].split(sep):
+			if fnmatch.fnmatch(item,terms[1]):
+				results.append(str(i))
+			i += 1
+
+		return "" if len(results) == 0 else " ".join(results)
+
+	def fn_max(self,ctx,terms):
+		m = 0
+		for x in ctx.evalTerms(terms):
+			if ctx.isnum(x) and ctx.numify(x) > m:
+				m = ctx.numify(x)
+		return str(m)
+
+	def fn_merge(self,ctx,terms):
+		return self.fn_notimplemented()
+
+
+	def fn_mid(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if len(terms) != 3:
+			return "#-1 Function expects three arguments."
+		if not ctx.isInt(terms[1] or not ctx.isInt(terms[2])):
+			return "#-1 Arguments two and three must be integers."
+		start = ctx.numify(terms[1])
+		end = start + ctx.numify(terms[2])
+
+		return terms[0][start:end]
+
+
+	def fn_min(self,ctx,terms):
+		m = 999999999
+		for x in ctx.evalTerms(terms):
+			if ctx.isnum(x) and ctx.numify(x) < m:
+				m = ctx.numify(x)
+		return str(m)
+
+	def fn_mix(self,ctx,terms):
+		
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 3 or len(terms) >4):
+			return "Function expects 3 or 4 arguments."
+
+		sep = " " if len(terms) < 4 else terms[3][0]
+		items1 = terms[1].split(sep)
+		items2 = terms[2].split(sep)
+
+		if (len(items1) != len(items2)):
+			return "#-1 Lists must be of equal length"
+
+		if terms[0].find('/') != -1:
+			(dbref,attr) = ctx.getObjAttr(terms[0])
+		else:
+			dbref = ctx.enactor
+			attr = terms[0].upper()
+
+		if not mush.db.validDbref(dbref) or attr not in mush.db[dbref]:
+			return ""
+
+		rlist = []
+		for i in range(len(items1)):
+			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+			e.registers[0] = items1[i]
+			e.registers[1] = items2[i]
+			rlist.append(e.eval(''))
+	
+		return sep.join(rlist)
 
 
 #
@@ -1154,8 +1366,6 @@ class MushFunctions():
 gMushFunctions = MushFunctions()
 
 def testParse():
-
-
 
 
 	tests= {
@@ -1279,11 +1489,45 @@ def testParse():
 		"iter(a b c d e f,##)":"a b c d e f",
 		"iter(a b c d e f,###@)":"a1 b2 c3 d4 e5 f6",
 		"[iter(1|2|3|4|5,add(##,add(##,1)),|)]Hello World!":"3 5 7 9 11Hello World!",
-
+		"last(this is the last word)":"word",
+		"last(this|is|the|last|word,|":"word",
+		"lattr(me)":"NAME DESCRIPTION ADDONE ADDBOTH TEST1FOO TEST0FOO",
+		"lattr(me/test*)":"TEST1FOO TEST0FOO",
+		"lcon(me)":"#4",
+		"lcon(here)":"#1 #7",
+		"lcstr(Foo BAR bAz)":"foo bar baz",
+		"lcstr()":"",
+		"loc(me)":"#0",
+		"loc()":"#-1",
+		"log(12)":"2.484907",
+		"lt(12,-1)":"0",
+		"lte(3,3)" :"1",
+		"lwho()":"",
+		"map(addone,10 11 12 13 14 15 16)":"11 12 13 14 15 16 17",
+		"map(me/addone,1;2;3,;)":"2;3;4",
+		"map(me/doesntexist,a b c)":"",
+		"match(dog cat bear,cb?)":"0",
+		"match(dog cat bear,c?t)":"2",
+		"match(dog|cat|bear,b*,|)":"3",
+		"matchall(dog|cat|bear|boar|cow|boa,b*,|)":"3 4 6",
+		"matchall(dog cat,c?z)":"",
+		"max(dog,cat,2,zoo,3)":"3",
+		"max(dog,cat)":"0",
+		"max()":"0",
+		"max(1,1.2)":"1.2",
+		"member(dog cat,cat)":"2",
+		"member(a|b|c|d,c,|)":"3",
+		"mid(dog,dog,dog)":"#-1 Arguments two and three must be integers.",
+		"mid(the dog was here,3,10":" dog was h",
+		"mid(a,3,4)":"",
+		"min(dog,1,-1)":"-1",
+		"mix(addboth,1|2|3|4|5,10|9|8|7|6,|)":"11|11|11|11|11",
+		"mix(me/addboth,1 2 3,4)":"#-1 Lists must be of equal length",
 		}
 
 
 	mush.db[1]["ADDONE"]="add(%0,1)"
+	mush.db[1]["ADDBOTH"]="add(%0,%1)"
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
 	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests for EvalEngine.")

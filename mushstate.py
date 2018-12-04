@@ -54,25 +54,14 @@ class MushState:
 		self.logFile = None 			# log file destination
 		self.lastPeriodic = 0
 
-
-
 	def start(self):
 
-		
 		self.logFile = open(_LOG,"w")
-
 		self.log(0,"=== Mush started.")
-
 		self.running = True 		
-
-		# initialize server
 		self.server = MudServer()
-
-		# intialize object database
 		self.db  = database.Database()
-
 		self.lastPeriodic = time.time()
-
 		self.load(_BASE)
 
 	def quit(self):
@@ -82,11 +71,7 @@ class MushState:
 		self.running = False
 		self.server.shutdown()
 		self.save(_BASE)
-
-
-
-
-
+		
 	def update(self):
 		
 		self.server.update()
