@@ -290,7 +290,7 @@ class Database(list):
 		return dbref 
 
 	def validDbref(self,dbref):
-		return dbref >= 0 and dbref < self.next
+		return dbref != None and dbref >= 0 and dbref < self.next
 
 	def recycle(self): 
 

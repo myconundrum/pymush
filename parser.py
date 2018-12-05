@@ -2,7 +2,7 @@
 import re
 import math
 import time
-from mushstate import mush
+from mushstate import mush,_MUSHNAME
 from database import ObjectFlags
 from utils import * 
 import commands
@@ -261,7 +261,7 @@ class EvalEngine:
 				elif self.line[i] == '[':
 					e = EvalEngine(self.line[i+1:],self.enactor,self.obj,self.listElem,self.listPos)
 					rStr += e.eval("]")
-					self.line = e.line[1:]
+					self.line = None if e.line == None else e.line[1:]
 				
 				# we must have found one of the stop chars. exit.
 				else:
@@ -1306,7 +1306,7 @@ class MushFunctions():
 		return str(m)
 
 	def fn_merge(self,ctx,terms):
-		return self.fn_notimplemented()
+		return self.fn_notimplemented(ctx)
 
 
 	def fn_mid(self,ctx,terms):
@@ -1327,6 +1327,8 @@ class MushFunctions():
 			if ctx.isnum(x) and ctx.numify(x) < m:
 				m = ctx.numify(x)
 		return str(m)
+
+
 
 	def fn_mix(self,ctx,terms):
 		
@@ -1360,13 +1362,92 @@ class MushFunctions():
 		return sep.join(rlist)
 
 
+	def fn_mod(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+
+		if (len(terms) !=2):
+			return "#-1 Function expects two arguments."
+		if (not ctx.isInt(terms[0]) or not ctx.isInt(terms[1])):
+			return "#-1 Arguments must be integers."
+		return str(ctx.numify(terms[0])%ctx.numify(terms[1]))
+
+	def fn_money(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+	def fn_mount(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_mtime(self,ctx,terms):
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1"
+		return time.ctime(mush.db[dbref].lastModified)
+
+
+	def fn_mudname(self,ctx,terms):
+		return _MUSHNAME
+
+	def fn_mul(self,ctx,terms):
+		val = 1
+		for x in ctx.evalTerms(terms):
+			val = val * (0 if not ctx.isnum(x) else ctx.numify(x))
+		return str(val)
+
+	def fn_munge(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+
+	def fn_mwho(self,ctx,terms):
+		return " ".join(["#"+str(x) for x in mush.dbrefToPid if not mush.db[x].flags & ObjectFlags.DARK])
+
+	def fn_name(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if len(terms) == 0:
+			return "#-1"
+		if len(terms) > 1:
+			return "#-1 Rename not implemented in name() function."
+		dbref = ctx.dbrefify(terms[0])
+		return "#-1" if not mush.db.validDbref(dbref) else mush.db[dbref].name
+
+	def fn_nearby(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if len(terms) != 2:
+			return "#-1 Function expects two arguments."
+		dbref1 = ctx.dbrefify(terms[0])
+		dbref2 = ctx.dbrefify(terms[1])
+		if not mush.db.validDbref(dbref1) or not mush.db.validDbref(dbref2):
+			return "0"
+		o1 = mush.db[dbref1]
+		o2 = mush.db[dbref2]
+
+		return "1" if o1.location == o2.location or o1 in o2.contents or o2 in o1.contents else "0"
+
+	def fn_neq(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)	
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments"
+
+		if (not ctx.isnum(terms[0] or not ctx.isnum(terms[1]))):
+			return "#-1 Arguments must be numbers"
+
+		return "1" if ctx.numify(terms[0]) != ctx.numify(terms[1]) else "0"
+
+	def fn_newthunk(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_next(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_not(self,ctx,terms):
+		return "0" if ctx.boolify(ctx.evalOneTerm(terms)) else "1"
+
+
 #
 # The MushFunctions class is simply a container so we can have a safe place to do hasattr/getattr from text strings in the mush.
 # 
 gMushFunctions = MushFunctions()
 
 def testParse():
-
 
 	tests= {
 		"     abc def ghi":"abc def ghi",
@@ -1523,6 +1604,24 @@ def testParse():
 		"min(dog,1,-1)":"-1",
 		"mix(addboth,1|2|3|4|5,10|9|8|7|6,|)":"11|11|11|11|11",
 		"mix(me/addboth,1 2 3,4)":"#-1 Lists must be of equal length",
+		"[mod(6,2)]":"0",
+		"[mod(5,2)]":"1",
+		"[mod(5,add(1,1))]":"1",
+		"mudname()":"Farland",
+		"mul(1,dog,2)":"0",
+		"[mul(2,2,2,2,2)]":"32",
+		"[mul(1,3,2)]":"6",
+		"[mul()]":"0", # Note: in Pennmush empty returns 1. We change here.
+		"name(me)":"God",
+		"name(herE)":"Master Room",
+		"nearby(me,here)":"1",
+		"nearby(9,50)":"0",
+		"neq(1,1)":"0",
+		"neq(0,1)":"1",
+		"not(1)":"0",
+		"not(0)":"1",
+		"not(dog)":"0",
+		"not(#-1)":"1",
 		}
 
 
