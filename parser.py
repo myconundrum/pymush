@@ -10,7 +10,7 @@ import random
 import fnmatch
 import os
 import pickle
-
+import sys
 
 class EvalEngine:
 
@@ -260,6 +260,7 @@ class EvalEngine:
 				# check for brackets and recurse if found.
 				elif self.line[i] == '[':
 					e = EvalEngine(self.line[i+1:],self.enactor,self.obj,self.listElem,self.listPos)
+					e.registers = self.registers
 					rStr += e.eval("]")
 					self.line = None if e.line == None else e.line[1:]
 				
@@ -310,6 +311,8 @@ class MushFunctions():
 
 	def fn_after(self,ctx,terms):
 		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
 		words = terms[0].split(terms[1],1)
 		return words[1] if len(words) > 1 else ""
 		
@@ -432,8 +435,13 @@ class MushFunctions():
 
 	def fn_aposs(self,ctx,terms):
 
+		
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
+		sex = evalAttribute(ctx,dbref,"SEX").upper()
 		rval = "its"
-		sex = evalAttribute(ctx,ctx.dbrefify(ctx.evalOneTerm(terms)),"SEX").upper()
 
 		if (sex=="MALE" or sex == "M" or sex == "MAN"):
 			rval = "his"
@@ -462,6 +470,8 @@ class MushFunctions():
 
 	def fn_before(self,ctx,terms):
 		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
 		words = terms[0].split(terms[1],1)
 		return words[0] if len(words) > 1 else ""
 
@@ -499,7 +509,11 @@ class MushFunctions():
 
 	def fn_clone(self,ctx,terms):
 
-		o = mush.db[ctx.dbrefify(ctx.evalOneTerm(terms))]
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
+		o = mush.db[dbref]
 		if (o.flags & (ObjectFlags.ROOM | ObjectFlags.PLAYER)):
 			mush.msgDbref(enactor,"You can only clone things and exits.")
 			return "#-1"
@@ -507,6 +521,9 @@ class MushFunctions():
 
 	def fn_con(self,ctx,terms):
 		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
 		val =  -1 if len(mush.db[dbref].contents) == 0 else mush.db[dbref].contents[0]
 		return str(val)
 
@@ -536,7 +553,11 @@ class MushFunctions():
 		return str(dbref)
 	
 	def fn_ctime(self,ctx,terms):
-		return time.ctime(mush.db[ctx.dbrefify(ctx.evalOneTerm(terms))].creationTime)
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
+		return time.ctime(mush.db[dbref].creationTime)
 
 	#
 	# takes a *string* as argument, and finds the last integer part and subs one from that.
@@ -593,7 +614,7 @@ class MushFunctions():
 		if (len(terms)) == 2:
 			eout = terms[1]
 
-		return str(commands.doDig(mush.db[ctx.enactor],terms[0],eout,eback))
+		return f"#{commands.doDig(mush.db[ctx.enactor],terms[0],eout,eback)}"
 
 	def fn_dist2d(self,ctx,terms):
 		
@@ -763,6 +784,8 @@ class MushFunctions():
 			return "#-1"
 
 		dbref = ctx.dbrefify(terms[0])
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
 		
 		if mush.db[dbref].flags & ObjectFlags.ROOM:
 			for o in mush.db[dbref].contents:
@@ -865,11 +888,13 @@ class MushFunctions():
 		return "-1"
 
 	def fn_fullname(self,ctx,terms):
-		return mush.db[ctx.dbrefify(ctx.evalOneTerm(terms))]["NAME"]
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+		return mush.db[dbref]["NAME"]
 
 	def fn_functions(self,ctx,terms):
-		ctx.evalOneTerm(terms)
-		return ' '.join(fnList.keys())
+		return ' '.join([x[3:] for x in dir(self) if x[0:3] == "fn_"])
 
 	def fn_get(self,ctx,terms):
 
@@ -878,6 +903,8 @@ class MushFunctions():
 			return "#-1 Function expects one argument."
 
 		(dbref,attr) = ctx.getObjAttr(term)
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
 
 		return "" if attr not in mush.db[dbref] else mush.db[dbref][attr]
 
@@ -887,6 +914,9 @@ class MushFunctions():
 		if (term == ""):
 			return "#-1 Function expects two arguments."
 		(dbref,attr) = ctx.getObjAttr(term)
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
 		return ctx.evalString(mush.db[dbref][attr]) if attr in mush.db[dbref] else ""
 			
 	def fn_grab(self,ctx,terms):
@@ -989,12 +1019,11 @@ class MushFunctions():
 
 	def fn_home(self,ctx,terms):
 
-		term = ctx.evalOneTerm(terms)
-		if (term == ""):
-			return "#-1 Function expects one argument."
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
 
-		return f"#{mush.db[ctx.dbrefify(term)].home}"
-
+		return f"#{mush.db[dbref].home}"
 
 	def fn_idle(self,ctx,terms):
 
@@ -1053,7 +1082,6 @@ class MushFunctions():
 
 		return sep.join(items[start:start+length])
 
-
 	def fn_inlist(self,ctx,terms):
 
 		terms = ctx.evalTerms(terms)
@@ -1066,7 +1094,6 @@ class MushFunctions():
 
 		sep = " " if len(terms) < 3 else terms[2]
 		return "1" if terms[1] in terms[0].split(sep) else "0"
-
 
 	def fn_insert(self,ctx,terms):
 
@@ -1084,10 +1111,10 @@ class MushFunctions():
 		return sep.join(items)
 
 	def fn_invoke(self,ctx,terms):
-		return self.fn_notimplemented()
+		return self.fn_notimplemented(ctx)
 
 	def fn_isdaylight(self,ctx,terms):
-		return self.fn_notimplemented()
+		return self.fn_notimplemented(ctx)
 
 	def fn_isdbref(self,ctx,terms):
 		term = ctx.evalOneTerm(terms)
@@ -1176,24 +1203,23 @@ class MushFunctions():
 	def fn_lcstr(self,ctx,terms):
 		return ctx.evalOneTerm(terms).lower()
 
-
 	def fn_loc(self,ctx,terms):
 		if (terms==""):
 			return "#-1"
 		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
 		return "#-1" if not mush.db.validDbref(dbref) else f"#{mush.db[dbref].location}"
 
-
-
 	def fn_locate(self,ctx,terms):
 		return self.fn_notimplemented(ctx)
-
 
 	def fn_lock(self,ctx,terms):
 		return self.fn_notimplemented(ctx)
 
 	def fn_log(self,ctx,terms):
-		return str(round(math.log(ctx.numify(ctx.evalOneTerm(terms))),6))
+		terms = ctx.evalOneTerm(terms)
+		if not ctx.isnum(terms):
+			return "-inf"
+		return str(round(math.log(ctx.numify(terms)),6))
 
 	def fn_lparent(self,ctx,terms):
 		return self.fn_notimplemented(ctx)
@@ -1241,6 +1267,8 @@ class MushFunctions():
 	def fn_map(self,ctx,terms):
 		
 		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2 or len(terms) > 3):
+			return "#-1 Function expects two or three arguments."
 		
 		sep = " " if len(terms) < 3 else terms[2][0]
 		items = terms[1].split(sep)
@@ -1327,8 +1355,6 @@ class MushFunctions():
 			if ctx.isnum(x) and ctx.numify(x) < m:
 				m = ctx.numify(x)
 		return str(m)
-
-
 
 	def fn_mix(self,ctx,terms):
 		
@@ -1441,6 +1467,220 @@ class MushFunctions():
 	def fn_not(self,ctx,terms):
 		return "0" if ctx.boolify(ctx.evalOneTerm(terms)) else "1"
 
+	def fn_nwho(self,ctx,terms):
+		return str(len(["#"+str(x) for x in mush.dbrefToPid if not mush.db[x].flags & ObjectFlags.DARK]))
+
+	def fn_num(self,ctx,terms):
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		return f"#{dbref}" if mush.db.validDbref(dbref) else "#-1"
+
+	def fn_obj(self,ctx,terms):
+
+		rval = "it"
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
+		sex = evalAttribute(ctx,dbref,"SEX").upper()
+
+		if (sex=="MALE" or sex == "M" or sex == "MAN"):
+			rval = "him"
+		elif(sex=="FEMALE" or sex =="F" or sex == "WOMAN" ):
+			rval = "her"
+		elif(sex == "PLURAL"):
+			rval = "they"
+		return rval
+
+	def fn_objeval(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_objmem(self,ctx,terms):
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		return str(sys.getsizeof(dbref)) if mush.db.validDbref(dbref) else "#-1"
+
+	def fn_oemit(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "Function expects two terms."
+		mush.msgLocation(mush.db[ctx.obj].location,terms[1],ctx.dbrefify(terms[0]))
+		return ""
+
+	def fn_open(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms)!=2):
+			return "#-1 Function expects two arguments."
+		if  self.fn_isdbref(ctx,terms[1]) == "0":
+			return "#-1 Room argument must be a dbref."
+
+		target = ctx.dbrefify(terms[1])
+		if (not mush.db.validDbref(target) or not mush.db[target].flags & ObjectFlags.ROOM):
+			return "#-1 Target must be a room."
+
+		dbref = mush.db.newExit(mush.db[ctx.enactor])
+		mush.db[dbref]["NAME"] = terms[0]
+		mush.db[dbref].location = mush.db[ctx.enactor].location
+		mush.db[dbref].home = ctx.dbrefify(terms[1])
+		mush.db[ctx.enactor].contents.append(dbref)
+		mush.msgDbref(ctx.enactor,f"Exit named {terms[0]} created with ref #{dbref}.")
+		mush.log(2,f"{mush.db[ctx.enactor].name}(#{ctx.enactor}) dug exit named {terms[0]} (#{dbref}).")
+
+		return f"#{dbref}"
+
+
+	def fn_or(self,ctx,terms):
+
+		for t in ctx.evalTerms(terms):
+			if (ctx.boolify(t) == True):
+				return "1"
+		return "0"
+
+	def fn_orflags(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+
+	def fn_owner(self,ctx,terms):
+
+		#
+		# attribute version not implemented.
+		#
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		return f"#{mush.db[dbref].owner}" if mush.db.validDbref(dbref) else "#-1"
+
+
+	def fn_parent(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_parse(self,ctx,terms):
+		return self.fn_iter(ctx,terms)
+
+	def fn_passcheck(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_pi(self,ctx,terms):
+		return "3.141593"
+
+	def fn_pemit(self,ctx,terms):
+		# does not handle options. 
+		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
+
+		dbref = ctx.dbrefify(terms[0])
+		if mush.db.validDbref(dbref):
+			mush.msgDbref(dbref,terms[1])
+			mush.msgDbref(ctx.enactor,f"You pemit \"{terms[1]}\" to {mush.db[dbref].name}.")
+			return ""
+
+		return "I don't see that player here."
+
+
+	def fn_playermem(self,ctx,terms):
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		
+		if not mush.db.validDbref(dbref):
+			return "#-1"
+
+		mem = 0
+		for o in mush.db:
+			if o.owner == dbref:
+				mem += sys.getsizeof(o.dbref)
+
+		return str(mem)
+
+	def fn_pmatch(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_poll(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_ports(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_pos(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
+		i = terms[1].find(terms[0])
+		return str(i) if i != -1 else "#-1"
+
+
+	def fn_poss(self,ctx,terms):
+
+		rval = "its"
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
+		sex = evalAttribute(ctx,dbref,"SEX").upper()
+
+		if (sex=="MALE" or sex == "M" or sex == "MAN"):
+			rval = "his"
+		elif(sex=="FEMALE" or sex =="F" or sex == "WOMAN" ):
+			rval = "her"
+		elif(sex == "PLURAL"):
+			rval = "their"
+		return rval
+
+	def fn_power(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms) !=2):
+			return "#-1 Function expects two arguments."
+
+		if not ctx.isnum(terms[0]) or not ctx.isnum(terms[1]):
+			return "#-1 arguments must be numbers."
+
+		if ctx.isInt(terms[0]) and ctx.isInt(terms[0]):
+			return str(int(math.pow(ctx.numify(terms[0]),ctx.numify(terms[1]))))
+		else:
+			return str(round(math.pow(ctx.numify(terms[0]),ctx.numify(terms[1])),6))
+
+	def fn_powers(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_pushreg(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_quota(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_r(self,ctx,terms):
+		val = ctx.numify(ctx.evalOneTerm(terms))
+		return "#-1 Invalid register index." if (val < 0 or val > 9) else ctx.registers[val]
+
+	# setq returns an empty string. setr returns the string stored.
+	def fn_setq(self,ctx,terms):
+		self.fn_setr(ctx,terms)
+		return ""
+
+	def fn_setr(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if len(terms) != 2:
+			return "#-1 Function expects two arguments."
+		val = ctx.numify(terms[0])
+		if (val <0 or val > 9):
+			return "#-1 Invalid register index."
+		ctx.registers[val] = terms[1]
+		return terms[1]
+
+	def fn_rand(self,ctx,terms):
+		num = ctx.evalOneTerm(terms)
+		return "#-1 Argument must be an integer" if not ctx.isnum(num) else str(random.randint(0,ctx.numify(num)))
+
+	def fn_recol(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_remit(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
+
+		dbref = ctx.dbrefify(terms[0])
+		if not mush.db.validDbref(dbref):
+			return "I can't find that."
+
+		mush.msgLocation(dbref,terms[1])
+		return ""
+
 
 #
 # The MushFunctions class is simply a container so we can have a safe place to do hasattr/getattr from text strings in the mush.
@@ -1489,8 +1729,8 @@ def testParse():
 		"default(me/description,so weird)":"The Alpha and Omega.",
 		"default(me/yoyo,Not a yoyo here.":"Not a yoyo here.",
 		"[delete(abcdefgh, 3, 2)]":"abcfgh",
-		"dig(house)":"5",
-		"dig(house,out,in)":"6",
+		"dig(house)":"#5",
+		"dig(house,out,in)":"#6",
 		"dist2D(1,1,3,3)":"2.828427",
 		"dist3D(1,1,1,3,3,3)":"3.464102",
 		"div(5,2)":"2",
@@ -1622,6 +1862,27 @@ def testParse():
 		"not(0)":"1",
 		"not(dog)":"0",
 		"not(#-1)":"1",
+		"nwho()":"0",
+		"num(me)":"#1",
+		"obj(me)":"it",
+		"objmem(me)":"28",
+		"oemit(here,hello)":"",
+		"oemit(me,hello)":"",
+		"or(add(0,0))":"0",
+		"or(bool(dog))":"1",
+		"or()":"0",
+		"open(door,#6)":"#9",
+		"open(door,#1)":"#-1 Target must be a room.",
+		"owner(blag)":"#-1",
+		"owner(door)":"#1",
+		"pemit(bl,hello)":"I don't see that player here.",
+		"pemit(me,hello)":"",
+		"playermem(me)":"224",
+		"pos(a dog,I saw A DOG and a cat and a dog.)":"26",
+		"pos(a dog,a cat)":"#-1",
+		"power(2,3)":"8",
+		"power(1.2,3.34)":"1.838507",
+		"setr(0,hello)[r(0)]":"hellohello",
 		}
 
 
@@ -1629,7 +1890,17 @@ def testParse():
 	mush.db[1]["ADDBOTH"]="add(%0,%1)"
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
-	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests for EvalEngine.")
+
+	mushfun = [x[3:] for x in dir(gMushFunctions) if x[0:3] == "fn_" and x != "fn_notimplemented"]
+	e = EvalEngine("",1,1)
+	notimp = [x for x in mushfun if x != "notimplemented" and x !="create" and x!= "dig" and getattr(gMushFunctions,f"fn_{x}")(e,"(1,2,3)") == "#-1 Function Not Implemented"]
+	prettylist = [x if x not in notimp else f"{x}(NOT IMPLEMENTED)" for x in mushfun]
+
+
+	mush.log(1,f"MUSH: {len(mushfun)} known mush functions {len(notimp)} are not implemented.")
+	mush.log(5,f"MUSH: Known functions list is:\n {' '.join(prettylist)}")
+	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests on mush functions")
+
 
 	for s in tests:
 		e = EvalEngine(s,1,1)
