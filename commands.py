@@ -608,7 +608,6 @@ def handleInput(data):
 		gCommands[cmd]["fn"](mush.db[mush.pidToDbref[pid]],args,gCommands[cmd]["ex"])
 		return
 
-
 gCommands = {
 
 	"QUIT" 			: {"fn" : quit, "ex" : None},

@@ -2,6 +2,16 @@
 from parser import EvalEngine,gMushFunctions
 from mushstate import mush
 
+def inspectFunctions():
+	mushfun = [x[3:] for x in dir(gMushFunctions) if x[0:3] == "fn_" and x != "fn_notimplemented"]
+	e = EvalEngine("",1,1)
+	notimp = [x for x in mushfun if x != "notimplemented" and x !="create" and x!= "dig" and getattr(gMushFunctions,f"fn_{x}")(e,"(1,2,3)") == "#-1 Function Not Implemented"]
+	prettylist = [x if x not in notimp else f"{x}(NOT IMPLEMENTED)" for x in mushfun]
+
+
+	mush.log(1,f"MUSH: {len(mushfun)} known mush functions {len(notimp)} are not implemented.")
+	mush.log(5,f"MUSH: Known functions list is:\n {' '.join(prettylist)}")
+
 def testParse():
 
 	tests= {
@@ -237,11 +247,8 @@ def testParse():
   		"sub(1,2)":"-1",
   		"sub(2,1)":"1",
   		"subj(me)":"it",
-  		
+  		"switch(this is test,*txs*,a b c,*izs*,d e f,No match for #$.)":"No match for this is test.",
   
-
-
-
 		}
 
 
@@ -251,14 +258,7 @@ def testParse():
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
 
-	mushfun = [x[3:] for x in dir(gMushFunctions) if x[0:3] == "fn_" and x != "fn_notimplemented"]
-	e = EvalEngine("",1,1)
-	notimp = [x for x in mushfun if x != "notimplemented" and x !="create" and x!= "dig" and getattr(gMushFunctions,f"fn_{x}")(e,"(1,2,3)") == "#-1 Function Not Implemented"]
-	prettylist = [x if x not in notimp else f"{x}(NOT IMPLEMENTED)" for x in mushfun]
-
-
-	mush.log(1,f"MUSH: {len(mushfun)} known mush functions {len(notimp)} are not implemented.")
-	mush.log(5,f"MUSH: Known functions list is:\n {' '.join(prettylist)}")
+	#inspectFunctions()
 	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests on mush functions")
 
 

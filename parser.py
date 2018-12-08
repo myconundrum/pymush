@@ -14,20 +14,30 @@ import sys
 
 class EvalEngine:
 
-	def __init__(self,line,enactor,obj,listelem="",listpos=-1):
+	def __init__(self,line,enactor,obj):
 
-		self.registers 		= ["0","0","0","0","0","0","0","0","0","0"]
-		
 		self.enactor 		= enactor
 		self.obj     		= obj
 		self.line    		= line
 		self.originalLine	= line
-		#
-		# listelem and listpos if specified are used for 
-		# list replacements (a la iter() and etc) if specified.
-		# 
-		self.listElem 		= listelem
-		self.listPos 		= listpos
+		self.substack		= [] # for saving context of substitutions.
+
+		self.sub = {
+			"%0":"","%1":"","%2":"","%3":"","%4":"","%5":"","%6":"","%7":"","%8":"","%9":"", # registers
+			"##": "", 							# ## (List Element in iter)
+			"#@": "", 							# #@ (List Position in iter)
+			"#$": "",							# #$ (Switch test in switch)
+			"%N": mush.db[self.enactor].name, 	# %N (enactor name)
+			"%R": "\n",							# %R (newline)
+			"%B": " ",							# %B (space)
+	}
+		
+
+	def pushsubs(self):
+		self.substack.append(self.sub)
+	def popsubs(self):
+		self.sub = self.substack.pop()
+
 
 	def splitTerms(self,s):
 
@@ -36,6 +46,7 @@ class EvalEngine:
 		blevel 		= 0
 		i 			= 0
 		termStart 	= 0
+
 
 		while (plevel or blevel) and i < len(s):
 			if s[i] == ')':
@@ -80,6 +91,9 @@ class EvalEngine:
 			return self.listElem
 		elif (ch =='@'):
 			return str(self.listPos) 
+		elif (ch =='$'):
+			print(self.switchtest)
+			return self.switchtest
 		return f"#{ch}"
 
 	def dbrefify(self,term):
@@ -211,8 +225,8 @@ class EvalEngine:
 
 	# instead of continuing with current line, evaluates a different string with the same context.
 	def stringEval(self,s):
-		e = EvalEngine(s,self.enactor,self.obj,self.listElem,self.listPos)
-		e.registers = self.registers
+		e = EvalEngine(s,self.enactor,self.obj)
+		e.sub = self.sub 
 		return e.eval("")
 
 	def evalTerms(self,terms):
@@ -236,7 +250,7 @@ class EvalEngine:
 		rStr += self._eval_fn()
 
 		# Now loop through the rest of the string until we reach our stopchars or a special char.
-		specialchars = "\[%#]" if self.listPos != -1 else "\[%]"
+		specialchars = "\[%#]"
 		pattern = re.compile(f"[{stops}{specialchars}") 
 
 		while self.line != None:
@@ -250,17 +264,12 @@ class EvalEngine:
 				i = match.start() 
 				rStr += self.line[:i]
 				# Check for substitution characters
-				if self.line[i] == '%':
-					rStr += self.evalSubstitutions(self.line[i+1])
+				if self.line[i] == '%' or self.line[i] == '#':
+					rStr += self.sub[self.line[i:i+2]] if self.line[i:i+2] in self.sub else self.line[i:i+2]
 					self.line = self.line[i+2:]
-				# Check for list element substitutions if they are specified.
-				elif self.line[i] == '#':
-					rStr += self.evalListSubstitutions(self.line[i+1])
-					self.line = self.line[i+2:]
-				# check for brackets and recurse if found.
 				elif self.line[i] == '[':
-					e = EvalEngine(self.line[i+1:],self.enactor,self.obj,self.listElem,self.listPos)
-					e.registers = self.registers
+					e = EvalEngine(self.line[i+1:],self.enactor,self.obj)
+					e.sub = self.sub
 					rStr += e.eval("]")
 					self.line = None if e.line == None else e.line[1:]
 				
@@ -272,13 +281,9 @@ class EvalEngine:
 		return rStr
 
 def evalAttribute(ctx,dbref,attr):
-
-	if attr not in mush.db[dbref]:
-		return ""
-	else:
-		e = EvalEngine(mush.db[dbref][attr],ctx.enactor,dbref,ctx.listElem,ctx.listPos)
-		return e.eval("")
+	return "" if attr not in mush.db[dbref] else ctx.stringEval(mush.db[dbref][attr])
 	
+
 class MushFunctions():
 	def __init__(self):
 		pass
@@ -663,9 +668,8 @@ class MushFunctions():
 			return "#-1 Function exects two arguments." 
 
 		(dbref,attr) = ctx.getObjAttr(terms[0])
-		e = EvalEngine(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
-		return e.eval("")
-
+		return ctx.stringEval(mush.db[dbref][attr] if attr in mush.db[dbref] else terms[1])
+		
 	def fn_edit(self,ctx,terms):
 		
 		terms = ctx.evalTerms(terms)
@@ -764,11 +768,7 @@ class MushFunctions():
 
 		dbref = ctx.dbrefify(terms[0])
 		attr = terms[1].upper()
-		if attr in mush.db[dbref]:
-			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
-			return e.eval("")
-
-		return ""
+		return evalAttribute(ctx,dbref,attr)
 
 	#
 	# weird functino. Based on documentation, returns the first exit for object. 
@@ -860,14 +860,14 @@ class MushFunctions():
 			return "#-1 Function expects two arguments."
 		(dbref,attr) = ctx.getObjAttr(terms[0])
 
-		
 		rVal = ""
 		if attr in mush.db[dbref]:
 			for letter in terms[1]:
-				e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj,ctx.listElem,ctx.listPos)
-				e.registers[0] = letter
-				rVal += e.eval("")
-
+				ctx.pushsubs()
+				ctx.sub["%0"] = letter 
+				rVal += evalAttribute(ctx,dbref,attr)
+				ctx.popsubs()
+				
 		return rVal
 
 	def fn_freeattr(self,ctx,terms):
@@ -1157,10 +1157,12 @@ class MushFunctions():
 		rlist = []
 		n = 1
 		for item in items: 
-
-			e = EvalEngine(terms[1],ctx.enactor,ctx.obj,item,n)
-			rlist.append(e.eval(''))
+			ctx.pushsubs()
+			ctx.sub["##"] = item
+			ctx.sub["#@"] = str(n)
+			rlist.append(ctx.stringEval(terms[1]))
 			n+=1
+			ctx.popsubs()
 
 		return osep.join(rlist)
 
@@ -1284,10 +1286,11 @@ class MushFunctions():
 
 		rlist = []
 		for item in items: 
-			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
-			e.registers[0] = item
-			rlist.append(e.eval(''))
-	
+			ctx.pushsubs()
+			ctx.sub["%0"] = item
+			rlist.append(evalAttribute(ctx,dbref,attr))
+			ctx.popsubs()
+
 		return sep.join(rlist)
 
 
@@ -1380,10 +1383,11 @@ class MushFunctions():
 
 		rlist = []
 		for i in range(len(items1)):
-			e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
-			e.registers[0] = items1[i]
-			e.registers[1] = items2[i]
-			rlist.append(e.eval(''))
+			ctx.pushsubs()
+			ctx.sub["%0"] = items1[i]
+			ctx.sub["%1"] = items2[i]
+			rlist.append(evalAttribute(ctx,dbref,attr))
+			ctx.popsubs()
 	
 		return sep.join(rlist)
 
@@ -1645,7 +1649,7 @@ class MushFunctions():
 
 	def fn_r(self,ctx,terms):
 		val = ctx.numify(ctx.evalOneTerm(terms))
-		return "#-1 Invalid register index." if (val < 0 or val > 9) else ctx.registers[val]
+		return "#-1 Invalid register index." if (val < 0 or val > 9) else ctx.sub[f"%{val}"]
 
 	# setq returns an empty string. setr returns the string stored.
 	def fn_setq(self,ctx,terms):
@@ -1659,7 +1663,7 @@ class MushFunctions():
 		val = ctx.numify(terms[0])
 		if (val <0 or val > 9):
 			return "#-1 Invalid register index."
-		ctx.registers[val] = terms[1]
+		ctx.sub[f"%{val}"] = terms[1]
 		return terms[1]
 
 	def fn_rand(self,ctx,terms):
@@ -1955,13 +1959,15 @@ class MushFunctions():
 			inserted = False 
 			li = rlist[:]
 			for x in rlist:
+				ctx.pushsubs()
 				e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
-				e.registers[0] = item
-				e.registers[1] = x
-				if (ctx.numify(e.eval('')) < 0):
+				ctx.sub["%0"] = item
+				ctx.sub["%1"] = x
+				if (ctx.numify(evalAttribute(ctx,dbref,attr)) < 0):
 					li.insert(rlist.index(x),item)
 					inserted = True
 					break
+				ctx.popsubs() 
 			
 			if not inserted:
 				li.append(item)
@@ -2072,16 +2078,33 @@ class MushFunctions():
 		return rval
 
 	def fn_switch(self,ctx,terms):
-		return self.fn_notimplemented(ctx)
+
+		terms = ctx.splitTerms(terms)
+		if len(terms) < 3:
+			return "#-1 Function expects at least three arguments."
+
+		test = ctx.evalOneTerm(terms[0])
+		ctx.sub["#$"] = test
+
+		expressions = terms[1::2]
+		actions = terms[2::2]
+		
+		if len(expressions) > len(actions):
+			defAction = expressions[-1]
+			expressions = expressions[:-1]
+		else:
+			defAction = ""
+
+		ctx.swtichtest = test 
+		for exp in expressions:
+			if fnmatch.fnmatch(test,ctx.evalOneTerm(exp)):
+				return ctx.evalOneTerm(actions[expressions.index(exp)])
+		return ctx.evalOneTerm(defAction)
+
+
 
 	
 	
-
-
-
-
-
-
 
 #
 # The MushFunctions class is simply a container so we can have a safe place to do hasattr/getattr from text strings in the mush.

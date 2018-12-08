@@ -1,10 +1,9 @@
-Fri Dec  7 22:31:28 2018: === Mush started.
-Fri Dec  7 22:31:28 2018: Mush: data files not found. Starting fresh.
-Fri Dec  7 22:31:28 2018: MUSH: 236 known mush functions 78 are not implemented.
-Fri Dec  7 22:31:28 2018: MUSH: running 232 functional tests on mush functions
-Fri Dec  7 22:31:28 2018: God(#1) created object named dog (#3).
-Fri Dec  7 22:31:28 2018: God(#1) dug room named house (#4).
-Fri Dec  7 22:31:28 2018: God(#1) dug room named house (#5).
-Fri Dec  7 22:31:28 2018: God(#1) dug exit named out (#6).
-Fri Dec  7 22:31:28 2018: God(#1) dug exit named in (#7).
-Fri Dec  7 22:31:28 2018: God(#1) dug exit named door (#8).
+Sat Dec  8 13:17:01 2018: === Mush started.
+Sat Dec  8 13:17:01 2018: Mush: data files not found. Starting fresh.
+Sat Dec  8 13:17:01 2018: MUSH: running 233 functional tests on mush functions
+Sat Dec  8 13:17:01 2018: God(#1) created object named dog (#3).
+Sat Dec  8 13:17:01 2018: God(#1) dug room named house (#4).
+Sat Dec  8 13:17:01 2018: God(#1) dug room named house (#5).
+Sat Dec  8 13:17:01 2018: God(#1) dug exit named out (#6).
+Sat Dec  8 13:17:01 2018: God(#1) dug exit named in (#7).
+Sat Dec  8 13:17:01 2018: God(#1) dug exit named door (#8).
