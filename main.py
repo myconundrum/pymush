@@ -3,13 +3,15 @@ from commands import handleInput
 import time
 import re
 import parser
+from tests import testParse
 
 
 
 def init():
 
 	mush.start()
-	parser.testParse()
+	
+	testParse()
 
 
 def main():
@@ -30,7 +32,6 @@ def main():
 		
 		# don't peg the cpu.
 		time.sleep(0.01)
-
 
 	
 main()

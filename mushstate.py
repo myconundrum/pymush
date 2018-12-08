@@ -13,7 +13,7 @@ _LOGLEVEL=2
 _GODPASS = "godpass"
 _PERIODIC_UPDATE = 60
 _MUSHNAME 				= "Farland"
-_MUSHVERSION			= 1.01
+_MUSHVERSION			= 1.02
 
 _WELCOMEMSG = f"""
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=		
@@ -53,6 +53,8 @@ class MushState:
 		self.logLevel = _LOGLEVEL		# what events are captured for logging
 		self.logFile = None 			# log file destination
 		self.lastPeriodic = 0
+		self.lastSave = 0				# last time saved. 
+		self.startTime = time.time()
 
 	def start(self):
 
@@ -197,7 +199,8 @@ class MushState:
 	def save(self,base):
 
 		with open(f"{base}.dat","wb") as f:
-			pickle.dump(self.version,f)
+			pickle.dump(self.version,f,pickle.HIGHEST_PROTOCOL)
+			pickle.dump(self,time.time(),f,pickle.HIGHEST_PROTOCOL)
 			pickle.dump(self.users,f,pickle.HIGHEST_PROTOCOL)
 			pickle.dump(self.db,f,pickle.HIGHEST_PROTOCOL)
 
@@ -211,12 +214,14 @@ class MushState:
 
 		with open(f"{base}.dat","rb") as f:
 			version 	= pickle.load(f)
+			lastSave 	= pickle.load(f)
 			users 		= pickle.load(f)
 			db 			= pickle.load(f)
 
 			if (version == self.version and db.version == database.latestVersion()):
 				self.db = db 
 				self.users = users 
+				self.lastSave = lastSave
 				self.log (0,f"Mush: Loaded {len(self.db)} objects and {len(self.users)} users from {base}.dat.")
 			else: 
 				self.log (0,f"Mush: failed to load {base}.dat. Version mismatch.")
