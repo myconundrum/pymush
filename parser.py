@@ -2,7 +2,7 @@
 import re
 import math
 import time
-from mushstate import mush,_MUSHNAME
+from mushstate import mush,_MUSHNAME,_MUSHVERSION
 from database import ObjectFlags
 from utils import * 
 import commands
@@ -11,6 +11,9 @@ import fnmatch
 import os
 import pickle
 import sys
+import urllib.parse
+
+
 
 class EvalEngine:
 
@@ -21,6 +24,7 @@ class EvalEngine:
 		self.line    		= line
 		self.originalLine	= line
 		self.substack		= [] # for saving context of substitutions.
+		self.saved 			= [] # for saving context.
 
 		self.sub = {
 			"%0":"","%1":"","%2":"","%3":"","%4":"","%5":"","%6":"","%7":"","%8":"","%9":"", # registers
@@ -33,11 +37,19 @@ class EvalEngine:
 	}
 		
 
-	def pushsubs(self):
-		self.substack.append(self.sub)
-	def popsubs(self):
-		self.sub = self.substack.pop()
-
+	def save(self):
+		self.saved.append(self.enactor)
+		self.saved.append(self.obj)
+		self.saved.append(self.line)
+		self.saved.append(self.originalLine)
+		self.saved.append(self.sub)
+		
+	def restore(self):
+		self.sub 			= self.saved.pop()
+		self.originalLine 	= self.saved.pop()
+		self.line 			= self.saved.pop()
+		self.obj 			= self.saved.pop()
+		self.enactor 		= self.saved.pop()
 
 	def splitTerms(self,s):
 
@@ -69,33 +81,6 @@ class EvalEngine:
 
 		return terms
 	
-	def evalSubstitutions(self,ch):
-		if (ch == 'N'):
-			return mush.db[self.enactor].name
-		elif (ch == 'R'):
-			return '\n'
-		elif (ch == 'B'):
-			return ' '
-		elif (ch == '%'):
-			return '%'
-		elif (ch in '0123456789'):
-			return self.registers[int(ch)]
-
-		# BUGBUG: Need to add other substitutions
-		return ''
-
-
-	def evalListSubstitutions(self,ch):
-
-		if (ch == '#'):
-			return self.listElem
-		elif (ch =='@'):
-			return str(self.listPos) 
-		elif (ch =='$'):
-			print(self.switchtest)
-			return self.switchtest
-		return f"#{ch}"
-
 	def dbrefify(self,term):
 
 		term = term.strip().upper()
@@ -225,9 +210,13 @@ class EvalEngine:
 
 	# instead of continuing with current line, evaluates a different string with the same context.
 	def stringEval(self,s):
-		e = EvalEngine(s,self.enactor,self.obj)
-		e.sub = self.sub 
-		return e.eval("")
+		self.save()
+		self.line = s
+		self.originalLine = s
+		s = self.eval("")
+		self.restore()
+		return s 
+		
 
 	def evalTerms(self,terms):
 		results = []
@@ -268,10 +257,14 @@ class EvalEngine:
 					rStr += self.sub[self.line[i:i+2]] if self.line[i:i+2] in self.sub else self.line[i:i+2]
 					self.line = self.line[i+2:]
 				elif self.line[i] == '[':
-					e = EvalEngine(self.line[i+1:],self.enactor,self.obj)
-					e.sub = self.sub
-					rStr += e.eval("]")
-					self.line = None if e.line == None else e.line[1:]
+					self.save()
+					self.line = self.line[i+1:]
+					self.originalLine = self.line 
+					rStr += self.eval("]")
+					line = self.line 
+					self.restore()
+					self.line = None if line == None else line[1:]
+						
 				
 				# we must have found one of the stop chars. exit.
 				else:
@@ -863,10 +856,10 @@ class MushFunctions():
 		rVal = ""
 		if attr in mush.db[dbref]:
 			for letter in terms[1]:
-				ctx.pushsubs()
+				ctx.save()
 				ctx.sub["%0"] = letter 
 				rVal += evalAttribute(ctx,dbref,attr)
-				ctx.popsubs()
+				ctx.restore()
 				
 		return rVal
 
@@ -903,6 +896,19 @@ class MushFunctions():
 			return "#-1 Function expects one argument."
 
 		(dbref,attr) = ctx.getObjAttr(term)
+		if not mush.db.validDbref(dbref):
+			return "#-1 No Match"
+
+		return "" if attr not in mush.db[dbref] else mush.db[dbref][attr]
+
+	def fn_xget(self,ctx,terms):
+
+		terms  = ctx.evalTerms(terms)
+		if (len(terms) != 2):
+			return "#-1 Function expects two arguments."
+
+		dbref = ctx.dbrefify(terms[0])	
+		attr = terms[1].upper()
 		if not mush.db.validDbref(dbref):
 			return "#-1 No Match"
 
@@ -1156,13 +1162,13 @@ class MushFunctions():
 
 		rlist = []
 		n = 1
-		for item in items: 
-			ctx.pushsubs()
+		for item in items:
+			ctx.save()
 			ctx.sub["##"] = item
 			ctx.sub["#@"] = str(n)
 			rlist.append(ctx.stringEval(terms[1]))
 			n+=1
-			ctx.popsubs()
+			ctx.restore()
 
 		return osep.join(rlist)
 
@@ -1286,10 +1292,10 @@ class MushFunctions():
 
 		rlist = []
 		for item in items: 
-			ctx.pushsubs()
+			ctx.save()
 			ctx.sub["%0"] = item
 			rlist.append(evalAttribute(ctx,dbref,attr))
-			ctx.popsubs()
+			ctx.restore()
 
 		return sep.join(rlist)
 
@@ -1383,11 +1389,11 @@ class MushFunctions():
 
 		rlist = []
 		for i in range(len(items1)):
-			ctx.pushsubs()
+			ctx.save()
 			ctx.sub["%0"] = items1[i]
 			ctx.sub["%1"] = items2[i]
 			rlist.append(evalAttribute(ctx,dbref,attr))
-			ctx.popsubs()
+			ctx.restore()
 	
 		return sep.join(rlist)
 
@@ -1959,15 +1965,14 @@ class MushFunctions():
 			inserted = False 
 			li = rlist[:]
 			for x in rlist:
-				ctx.pushsubs()
-				e = EvalEngine(mush.db[dbref][attr],ctx.enactor,ctx.obj)
+				ctx.save()
 				ctx.sub["%0"] = item
 				ctx.sub["%1"] = x
 				if (ctx.numify(evalAttribute(ctx,dbref,attr)) < 0):
 					li.insert(rlist.index(x),item)
 					inserted = True
 					break
-				ctx.popsubs() 
+				ctx.restore() 
 			
 			if not inserted:
 				li.append(item)
@@ -2101,11 +2106,296 @@ class MushFunctions():
 				return ctx.evalOneTerm(actions[expressions.index(exp)])
 		return ctx.evalOneTerm(defAction)
 
+	def fn_t(self,ctx,terms):
+		return "1" if ctx.boolify(ctx.evalOneTerm(terms)) else "0"
 
+	def fn_table(self,ctx,terms):
 
+		terms = ctx.evalTerms(terms)
+		outsep 		= " " if len(terms) < 5 else terms[4][0]
+		sep 		= " " if len(terms) < 4 else terms[3][0]
+		linelength 	= 78 if len(terms) < 3 else ctx.numify(terms[2])
+		width 		= 10 if len(terms) < 2 else ctx.numify(terms[1])
+		items 		= [] if len(terms) < 1 else terms[0].split(sep)
+
+		curline = 0
+		rStr = ""
+		for item in items:
+			if curline + width > linelength:
+				rStr += "\n"
+				curline = 0
+			rStr += item[0:width].rjust(width)+outsep
+			curline += width
+
+		return rStr 
+
+	def fn_tan(self,ctx,terms):
+		return str(math.tan(ctx.numify(ctx.evalOneTerm(terms))))
+
+	def fn_tel(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_time(self,ctx,terms):
+		return time.ctime(time.time())
+
+	def fn_timestring(self,ctx,terms):
+		(m,s) = divmod(ctx.numify(ctx.evalOneTerm(terms)),60)
+		(h,m) = divmod(m,60)
+		(d,h) = divmod(h,24)
+
+		return f"{d}d {h}h {m}m {s}s"
+
+	def fn_trigger(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_trim(self,ctx,terms):
+		
+		terms 	= ctx.evalTerms(terms)
+		style 	= "" if len(terms) < 3 else terms[2][0]
+		tc 		= " " if len(terms) < 2 else terms[1][0]
+		s 		= "" if len(terms) < 1 else terms[0]
+
+		if (style == 'l'):
+			s = s.lstrip(tc)
+		elif (style == 'r'):
+			s = s.rstrip(tc)
+		else: 
+			s = s.strip(tc)
+
+		return s 
+
+	def fn_trunc(self,ctx,terms):
+
+		s = ctx.evalOneTerm(terms)
+		match = re.search(r'\D',s)	
+		return  s[0:match.start()] if match else s
 	
-	
+	def fn_ttyp(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
 
+	def fn_txtmem(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_type(self,ctx,terms):
+		dbref = ctx.dbrefify(ctx.evalOneTerm(terms))
+		if not mush.db.validDbref(dbref): 
+			return "#-1 I don't see that."
+		if mush.db[dbref].flags & ObjectFlags.ROOM:
+			return "ROOM"
+		if mush.db[dbref].flags & ObjectFlags.EXIT:
+			return "EXIT"
+		if mush.db[dbref].flags & ObjectFlags.PLAYER:
+			return "PLAYER"
+		return "OBJECT"
+
+	def fn_u(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if terms[0].find('/') != -1:
+			(dbref,attr) = ctx.getObjAttr(terms[0])
+		else:
+			dbref = ctx.enactor
+			attr = terms[0].upper()
+
+		ctx.save()
+		if (len(terms)) > 1:
+			n = 0
+			for term in terms[1:]:
+				ctx.sub[f"%{n}"] = term 
+				n +=1
+
+		s = evalAttribute(ctx,dbref,attr)
+		ctx.restore()
+		return s 
+
+	def fn_v(self,ctx,terms):
+		term =f"%{ctx.evalOneTerm(terms)}"
+		return ctx.sub[term] if term in ctx.sub else ""
+
+	def fn_ucstr(self,ctx,terms):
+		return ctx.evalOneTerm(terms).upper()
+
+	def fn_udefault(self,ctx,terms):
+
+		terms = ctx.splitTerms(terms)
+		if terms[0].find('/') != -1:
+			(dbref,attr) = ctx.getObjAttr(terms[0])
+		else:
+			dbref = ctx.enactor
+			attr = terms[0].upper()
+
+		default = "" if len(terms) < 2 else terms[1]
+		args = [ctx.evalOneTerm(x) for x in terms[2:]]
+		ctx.save()
+		n = 0
+		for term in args:
+			ctx.sub[f"%{n}"] = term
+			n +=1
+
+		s = evalAttribute(ctx,dbref,attr) if attr in mush.db[dbref] else ctx.stringEval(default)		
+		ctx.restore()
+		return s 
+
+	def fn_ufun(self,ctx,terms):
+		return self.fn_u(ctx,terms)
+
+	# BUGBUG: This may not be correct...
+	def fn_ulocal(self,ctx,terms):
+		return self.fn_u(ctx,terms)
+
+	def fn_urlencode(self,ctx,terms):
+		return urllib.parse.quote_plus(ctx.evalOneTerm(terms))
+
+	def fn_urldecode(self,ctx,terms):
+		# No evaluatio here. Simply unquote the raw string. Is this a bug?
+		return urllib.parse.unquote_plus(terms)
+
+	def fn_vadd(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2):
+			return "#-1 Functions expects two or three arguments."
+		sep = " " if len(terms) < 3 else terms[2][0]
+		v1 = terms[0].split(sep)
+		v2 = terms[1].split(sep)
+		if len(v1) != len(v2):
+			return "#-1 Vectors must be the same length"
+
+		for i in range(len(v1)):
+			v1[i] = str(ctx.numify(v1[i]) + ctx.numify(v2[i]))
+
+		return sep.join(v1)
+
+	def fn_val(self,ctx,terms):
+		return self.fn_trunc(ctx,terms)
+
+	def fn_valid(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_vdim(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		return str(len(terms[0].split(" " if len(terms) < 2 else terms[1][0])))
+
+	def fn_vdot(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2):
+			return "#-1 Functions expects two or three arguments."
+		sep = " " if len(terms) < 3 else terms[2][0]
+		v1 = terms[0].split(sep)
+		v2 = terms[1].split(sep)
+		if len(v1) != len(v2):
+			return "#-1 Vectors must be the same length"
+
+		val = 0
+		for i in range(len(v1)): 
+			val += ctx.numify(v1[i]) * ctx.numify(v2[i]) 
+
+		return str(val)
+		
+
+	def fn_vmul(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2):
+			return "#-1 Functions expects two or three arguments."
+		sep = " " if len(terms) < 3 else terms[2][0]
+		v1 = terms[0].split(sep)
+		v2 = terms[1].split(sep)
+		
+		if len(v1) == len(v2):
+			for i in range(len(v1)):
+				v1[i] = str(ctx.numify(v1[i]) * ctx.numify(v2[i]))
+			return sep.join(v1)
+
+		v = v2 if len(v1)==1 else v1
+		m = ctx.numify(v1[0] if len(v1)==1 else v2[0])
+		
+		for i in range(len(v)):
+			v[i] = str(ctx.numify(v[i])*m)
+
+		return sep.join(v)
+
+
+	def fn_version(self,ctx,terms):
+		return f"{_MUSHNAME} {_MUSHVERSION}"
+
+	def fn_visible(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+
+	def fn_vmag(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		val = 0
+
+		for v in terms[0].split(" " if len(terms) < 2 else terms[1][0]):
+			v = ctx.numify(v)
+			val += v*v
+		return str(math.sqrt(val))
+
+	def fn_vsub(self,ctx,terms):
+
+		terms = ctx.evalTerms(terms)
+		if (len(terms) < 2):
+			return "#-1 Functions expects two or three arguments."
+		sep = " " if len(terms) < 3 else terms[2][0]
+		v1 = terms[0].split(sep)
+		v2 = terms[1].split(sep)
+		if len(v1) != len(v2):
+			return "#-1 Vectors must be the same length"
+
+		for i in range(len(v1)):
+			v1[i] = str(ctx.numify(v1[i]) - ctx.numify(v2[i]))
+
+		return sep.join(v1)
+		
+	def fn_vunit(self,ctx,terms):
+
+		mag = ctx.numify(self.fn_vmag(ctx,terms))
+		if (mag == 0):
+			return "#-1 Divide by zero."
+
+		terms = ctx.evalTerms(terms)
+		sep = " " if len(terms) < 3 else terms[2][0]
+		
+		val = 0
+		v = terms[0].split(sep)
+		for i in range(len(v)):
+			v[i] = str(ctx.numify(v[i])/mag)
+
+		return sep.join(v)
+
+	def fn_wait(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_where(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_wipe(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_wordpos(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_wpemit(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_xor(self,ctx,terms):
+		terms = ctx.evalTerms(terms)
+		if (len(terms)) !=2:
+			return "#-1 Functions requires two parameters."
+		return "1" if ctx.boolify(terms[0]) != ctx.boolify(terms[1]) else "0"
+
+	def fn_zemit(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_zfun(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+
+	def fn_zone(self,ctx,terms):
+		return self.fn_notimplemented(ctx)
+		
 #
 # The MushFunctions class is simply a container so we can have a safe place to do hasattr/getattr from text strings in the mush.
 # 

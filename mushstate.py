@@ -12,7 +12,7 @@ _LOG="log.txt"
 _LOGLEVEL=2
 _GODPASS = "godpass"
 _PERIODIC_UPDATE = 60
-_MUSHNAME 				= "Farland"
+_MUSHNAME 				= "PynnMush"
 _MUSHVERSION			= 1.02
 
 _WELCOMEMSG = f"""

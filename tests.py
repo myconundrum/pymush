@@ -5,7 +5,7 @@ from mushstate import mush
 def inspectFunctions():
 	mushfun = [x[3:] for x in dir(gMushFunctions) if x[0:3] == "fn_" and x != "fn_notimplemented"]
 	e = EvalEngine("",1,1)
-	notimp = [x for x in mushfun if x != "notimplemented" and x !="create" and x!= "dig" and getattr(gMushFunctions,f"fn_{x}")(e,"(1,2,3)") == "#-1 Function Not Implemented"]
+	notimp = [x for x in mushfun if x != "notimplemented" and x !="create" and x!= "dig" and getattr(gMushFunctions,f"fn_{x}")(e,"(1 5,2,3)") == "#-1 Function Not Implemented"]
 	prettylist = [x if x not in notimp else f"{x}(NOT IMPLEMENTED)" for x in mushfun]
 
 
@@ -13,6 +13,7 @@ def inspectFunctions():
 	mush.log(5,f"MUSH: Known functions list is:\n {' '.join(prettylist)}")
 
 def testParse():
+
 
 	tests= {
 		"     abc def ghi":"abc def ghi",
@@ -171,7 +172,7 @@ def testParse():
 		"[mod(6,2)]":"0",
 		"[mod(5,2)]":"1",
 		"[mod(5,add(1,1))]":"1",
-		"mudname()":"Farland",
+		"mudname()":"PynnMush",
 		"mul(1,dog,2)":"0",
 		"[mul(2,2,2,2,2)]":"32",
 		"[mul(1,3,2)]":"6",
@@ -231,7 +232,7 @@ def testParse():
 		"sort(12 -2 5 7)":"-2 5 7 12",
 		"sort(#12 #-2 #5 #7)":"#-2 #5 #7 #12",
 		"[sortby(me/namesort,#5 #6 #7 #8)]":"#8 #5 #7 #6",
-		"iter([sortby(me/namesort,#5 #6 #7 #8)],[name(##)])":"door house in out",
+		"iter(sortby(me/namesort,#5 #6 #7 #8),[name(##)])":"door house in out",
 		"space(4)":"    ",
 		"splice(foo bar baz,eek moof gleep,bar)":"foo moof baz",
 		"sqr()":"0",
@@ -248,9 +249,34 @@ def testParse():
   		"sub(2,1)":"1",
   		"subj(me)":"it",
   		"switch(this is test,*txs*,a b c,*izs*,d e f,No match for #$.)":"No match for this is test.",
-  
+  		"table(a*b*c*d*e*f,8,30,*,|)":"       a|       b|       c|\n       d|       e|       f|",
+  		"timestring(5600)":"0d 1h 33m 20s",
+  		"[trim(   foo bar baz   eek  )]":"foo bar baz   eek",
+		"[trim(***BLAM***,*)]":"BLAM",
+		"[trim(-----> WOW---,-,r)]":"-----> WOW",
+		"trunc(101Dalmations)":"101",
+		"trunc(Dalmations101":"",
+		"trunc(10.78)":"10",
+		"type(me)":"PLAYER",
+		"type(here)":"ROOM",
+		"u(me/addboth,u(addone,20),13,14,15)":"34",
+		"v(N)":"God",
+		"ucstr(this is a test)":"THIS IS A TEST",
+		"udefault(me/addcoth,add(%0,%1),u(addone,20),13,14,15)":"34",
+		"urlencode(http://this is a test.com":"http%3A%2F%2Fthis+is+a+test.com",
+		"urldecode(http%3A%2F%2Fthis+is+a+test.com":"http://this is a test.com",
+		"vadd(1|2|3,4|5|6,|)":"5|7|9",
+		"vdim(1|2|3,|)":"3",
+		"vdot(1 2 3,2 3 4)":"20",
+		"vmul(2,1 2 3)":"2 4 6",
+		"vmul(1 2 3,2 3 4)":"2 6 12",
+		"version(dog)":"PynnMush 1.02",
+		"vmag(3 4)":"5.0", 
+		"vsub(3 4 5,3 2 1)":"0 2 4",
+		"vunit(2 0 0)":"1.0 0.0 0.0",
+		"words(this is a test)":"4",
+		"xget(me,test1foo)":"FOOBAR",
 		}
-
 
 	mush.db[1]["ADDONE"]="add(%0,1)"
 	mush.db[1]["ADDBOTH"]="add(%0,%1)"
@@ -258,7 +284,7 @@ def testParse():
 	mush.db[1]["TEST1FOO"]="FOOBAR"
 	mush.db[1]["TEST0FOO"]="FOOBAR"
 
-	#inspectFunctions()
+	inspectFunctions()
 	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests on mush functions")
 
 
