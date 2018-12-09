@@ -2,24 +2,16 @@ from mushstate import mush
 from commands import handleInput
 import time
 import re
-import parser
-from tests import testParse
-
-
+from tests import checkMush
 
 def init():
 
+	checkMush()
 	mush.start()
-	
-	testParse()
-
 
 def main():
 
-
 	init()
-	return
-
 	while mush.running:
 		
 		# do all internal mush state updates

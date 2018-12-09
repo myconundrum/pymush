@@ -6,6 +6,7 @@ from utils import *
 import time
 from mushstate import mush
 from fnmatch import fnmatch
+import parser
 
 ## Helper functions
 def testLock(player,dbref):
@@ -605,7 +606,9 @@ def handleInput(data):
 		return
 
 	if (gCommands.get(cmd)):
-		gCommands[cmd]["fn"](mush.db[mush.pidToDbref[pid]],args,gCommands[cmd]["ex"])
+		player = mush.db[mush.pidToDbref[pid]]
+		e = parser.EvalEngine(args,player.dbref,player.dbref)
+		gCommands[cmd]["fn"](player,e.eval(""),gCommands[cmd]["ex"])
 		return
 
 gCommands = {

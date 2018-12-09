@@ -13,8 +13,6 @@ import pickle
 import sys
 import urllib.parse
 
-
-
 class EvalEngine:
 
 	def __init__(self,line,enactor,obj):
@@ -36,7 +34,6 @@ class EvalEngine:
 			"%B": " ",							# %B (space)
 	}
 		
-
 	def save(self):
 		self.saved.append(self.enactor)
 		self.saved.append(self.obj)
@@ -217,13 +214,15 @@ class EvalEngine:
 		self.restore()
 		return s 
 		
-
+	def attrEval(self,dbref,attr):
+		return "" if attr not in mush.db[dbref] else self.stringEval(mush.db[dbref][attr])
+	
 	def evalTerms(self,terms):
 		results = []
 		for term in self.splitTerms(terms):
 			results.append(self.stringEval(term) if term != " " else " ")
 		return results
-
+		
 	def evalOneTerm(self,term):
 		return self.stringEval(term)
 
@@ -272,11 +271,7 @@ class EvalEngine:
 					return rStr
 
 		return rStr
-
-def evalAttribute(ctx,dbref,attr):
-	return "" if attr not in mush.db[dbref] else ctx.stringEval(mush.db[dbref][attr])
 	
-
 class MushFunctions():
 	def __init__(self):
 		pass
@@ -438,7 +433,7 @@ class MushFunctions():
 		if not mush.db.validDbref(dbref):
 			return "#-1 No Match"
 
-		sex = evalAttribute(ctx,dbref,"SEX").upper()
+		sex = ctx.attrEval(dbref,"SEX").upper()
 		rval = "its"
 
 		if (sex=="MALE" or sex == "M" or sex == "MAN"):
@@ -761,7 +756,7 @@ class MushFunctions():
 
 		dbref = ctx.dbrefify(terms[0])
 		attr = terms[1].upper()
-		return evalAttribute(ctx,dbref,attr)
+		return ctx.attrEval(dbref,attr)
 
 	#
 	# weird functino. Based on documentation, returns the first exit for object. 
@@ -858,7 +853,7 @@ class MushFunctions():
 			for letter in terms[1]:
 				ctx.save()
 				ctx.sub["%0"] = letter 
-				rVal += evalAttribute(ctx,dbref,attr)
+				rVal +=ctx.attrEval(dbref,attr)
 				ctx.restore()
 				
 		return rVal
@@ -1294,7 +1289,7 @@ class MushFunctions():
 		for item in items: 
 			ctx.save()
 			ctx.sub["%0"] = item
-			rlist.append(evalAttribute(ctx,dbref,attr))
+			rlist.append(ctx.attrEval(dbref,attr))
 			ctx.restore()
 
 		return sep.join(rlist)
@@ -1392,7 +1387,7 @@ class MushFunctions():
 			ctx.save()
 			ctx.sub["%0"] = items1[i]
 			ctx.sub["%1"] = items2[i]
-			rlist.append(evalAttribute(ctx,dbref,attr))
+			rlist.append(ctx.attrEval(dbref,attr))
 			ctx.restore()
 	
 		return sep.join(rlist)
@@ -1491,7 +1486,7 @@ class MushFunctions():
 		if not mush.db.validDbref(dbref):
 			return "#-1 No Match"
 
-		sex = evalAttribute(ctx,dbref,"SEX").upper()
+		sex = ctx.attrEval(dbref,"SEX").upper()
 
 		if (sex=="MALE" or sex == "M" or sex == "MAN"):
 			rval = "him"
@@ -1621,7 +1616,7 @@ class MushFunctions():
 		if not mush.db.validDbref(dbref):
 			return "#-1 No Match"
 
-		sex = evalAttribute(ctx,dbref,"SEX").upper()
+		sex = ctx.attrEval(dbref,"SEX").upper()
 
 		if (sex=="MALE" or sex == "M" or sex == "MAN"):
 			rval = "his"
@@ -1968,7 +1963,7 @@ class MushFunctions():
 				ctx.save()
 				ctx.sub["%0"] = item
 				ctx.sub["%1"] = x
-				if (ctx.numify(evalAttribute(ctx,dbref,attr)) < 0):
+				if (ctx.numify(ctx.attrEval(dbref,attr)) < 0):
 					li.insert(rlist.index(x),item)
 					inserted = True
 					break
@@ -2071,7 +2066,7 @@ class MushFunctions():
 		if not mush.db.validDbref(dbref):
 			return "#-1 No Match"
 
-		sex = evalAttribute(ctx,dbref,"SEX").upper()
+		sex = ctx.attrEval(dbref,"SEX").upper()
 		rval = "it"
 
 		if (sex=="MALE" or sex == "M" or sex == "MAN"):
@@ -2204,7 +2199,7 @@ class MushFunctions():
 				ctx.sub[f"%{n}"] = term 
 				n +=1
 
-		s = evalAttribute(ctx,dbref,attr)
+		s = ctx.attrEval(dbref,attr)
 		ctx.restore()
 		return s 
 
@@ -2232,7 +2227,7 @@ class MushFunctions():
 			ctx.sub[f"%{n}"] = term
 			n +=1
 
-		s = evalAttribute(ctx,dbref,attr) if attr in mush.db[dbref] else ctx.stringEval(default)		
+		s = ctx.attrEval(dbref,attr) if attr in mush.db[dbref] else ctx.stringEval(default)		
 		ctx.restore()
 		return s 
 
@@ -2293,7 +2288,6 @@ class MushFunctions():
 
 		return str(val)
 		
-
 	def fn_vmul(self,ctx,terms):
 
 		terms = ctx.evalTerms(terms)
@@ -2394,8 +2388,7 @@ class MushFunctions():
 		return self.fn_notimplemented(ctx)
 
 	def fn_zone(self,ctx,terms):
-		return self.fn_notimplemented(ctx)
-		
+		return self.fn_notimplemented(ctx)		
 #
 # The MushFunctions class is simply a container so we can have a safe place to do hasattr/getattr from text strings in the mush.
 # 

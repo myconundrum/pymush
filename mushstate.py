@@ -47,25 +47,29 @@ class MushState:
 		self.pidToDbref = {}			# look up from networking pid table for connected players
 		self.dbrefToPid = {}			# look up from dbref to networking pid for connected players
 
-		self.db = None 					# mush object database
+
 		self.server = None 				# mush networking code
 
-		self.logLevel = _LOGLEVEL		# what events are captured for logging
-		self.logFile = None 			# log file destination
+		self.logLevel = _LOGLEVEL		# what events are captured for logging		
+		self.logFile = open(_LOG,"w")
 		self.lastPeriodic = 0
 		self.lastSave = 0				# last time saved. 
 		self.startTime = time.time()
+		self.db  = database.Database()
+		self.freshMush()
+
+	
 
 	def start(self):
 
-		self.logFile = open(_LOG,"w")
+		
 		self.log(0,"=== Mush started.")
 		self.running = True 		
 		self.server = MudServer()
-		self.db  = database.Database()
 		self.lastPeriodic = time.time()
 		self.load(_BASE)
 
+		
 	def quit(self):
 
 		self.log(0,"==== Mush Exiting.")
@@ -166,6 +170,7 @@ class MushState:
 
 	def freshMush(self):
 
+		self.db = database.Database()
 		# Special objects cold start.
 		self.db.masterRoom = self.db._newObject()
 		o = self.db[self.db.masterRoom]
@@ -200,7 +205,7 @@ class MushState:
 
 		with open(f"{base}.dat","wb") as f:
 			pickle.dump(self.version,f,pickle.HIGHEST_PROTOCOL)
-			pickle.dump(self,time.time(),f,pickle.HIGHEST_PROTOCOL)
+			pickle.dump(time.time(),f,pickle.HIGHEST_PROTOCOL)
 			pickle.dump(self.users,f,pickle.HIGHEST_PROTOCOL)
 			pickle.dump(self.db,f,pickle.HIGHEST_PROTOCOL)
 

@@ -12,6 +12,10 @@ def inspectFunctions():
 	mush.log(1,f"MUSH: {len(mushfun)} known mush functions {len(notimp)} are not implemented.")
 	mush.log(5,f"MUSH: Known functions list is:\n {' '.join(prettylist)}")
 
+
+def checkMush():
+	testParse()
+
 def testParse():
 
 
@@ -287,11 +291,17 @@ def testParse():
 	inspectFunctions()
 	mush.log(1,f"MUSH: running {len(tests.keys())} functional tests on mush functions")
 
-
+	failed = 0
+	succeeded = 0
 	for s in tests:
 		e = EvalEngine(s,1,1)
 		val = e.eval("")
+		
 		if val != tests[s]:
+			failed += 1
 			mush.log(0,f"Test failed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
 		else:
+			succeeded += 1
 			mush.log(5,f"Test passed! \'{s}\'\n\texpected: \'{tests[s]}\'\n\tactual: \'{val}\'")
+
+	mush.log(1,f"MUSH: {succeeded} tests passed and {failed} tests failed on mush functions.")
