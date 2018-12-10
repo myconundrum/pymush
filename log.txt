@@ -1,11 +1,15 @@
-Sun Dec  9 19:43:30 2018: MUSH: 277 known mush functions 91 are not implemented.
-Sun Dec  9 19:43:30 2018: MUSH: running 260 functional tests on mush functions
-Sun Dec  9 19:43:30 2018: God(#1) created object named dog (#3).
-Sun Dec  9 19:43:30 2018: God(#1) dug room named house (#4).
-Sun Dec  9 19:43:30 2018: God(#1) dug room named house (#5).
-Sun Dec  9 19:43:30 2018: God(#1) dug exit named out (#6).
-Sun Dec  9 19:43:30 2018: God(#1) dug exit named in (#7).
-Sun Dec  9 19:43:30 2018: God(#1) dug exit named door (#8).
-Sun Dec  9 19:43:30 2018: MUSH: 260 tests passed and 0 tests failed on mush functions.
-Sun Dec  9 19:43:30 2018: === Mush started.
-Sun Dec  9 19:43:30 2018: Mush: Loaded 5 objects and 2 users from data.dat.
+Sun Dec  9 21:03:08 2018: MUSH: 277 known mush functions 91 are not implemented.
+Sun Dec  9 21:03:08 2018: MUSH: running 260 functional tests on mush functions
+Sun Dec  9 21:03:08 2018: God(#1) created object named dog (#3).
+Sun Dec  9 21:03:08 2018: God(#1) dug room named house (#4).
+Sun Dec  9 21:03:08 2018: God(#1) dug room named house (#5).
+Sun Dec  9 21:03:08 2018: God(#1) dug exit named out (#6).
+Sun Dec  9 21:03:08 2018: God(#1) dug exit named in (#7).
+Sun Dec  9 21:03:08 2018: God(#1) dug exit named door (#8).
+Sun Dec  9 21:03:08 2018: MUSH: 260 tests passed and 0 tests failed on mush functions.
+Sun Dec  9 21:03:08 2018: === Mush started.
+Sun Dec  9 21:03:08 2018: Mush: Loaded 8 objects and 2 users from data.dat.
+Sun Dec  9 21:03:15 2018: varen (#3) connected.
+Sun Dec  9 21:04:08 2018: Doing periodic updates...
+Sun Dec  9 21:04:29 2018: varen (#3) killed the server.
+Sun Dec  9 21:04:29 2018: ==== Mush Exiting.

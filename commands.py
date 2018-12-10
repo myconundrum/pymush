@@ -227,10 +227,6 @@ def look(player,args,ex) :
 	mush.msgDbref(player.dbref,o["DESCRIPTION"])
 
 
-
-#
-# BUGBUG Start from here completing evalstring word.
-#
 def attrset(player,args,attr) :
 	
 	args = args.split('=',1)
@@ -239,6 +235,7 @@ def attrset(player,args,attr) :
 		mush.msgDbref(player.dbref,"huh?")
 		return
 
+	args[0] = evalString(args[0],player.dbref)
 	dbref = findDbref(player,args[0])
 
 	if (dbref == None):
@@ -249,13 +246,15 @@ def attrset(player,args,attr) :
 		mush.msgDbref(player.dbref,f"You don't own that.")
 		return
 
-	mush.db[dbref][attr] = args[1]
+
+	mush.db[dbref][attr] = evalString(args[1],player.dbref)
 	mush.db[dbref].setAttrOwner(attr,player.dbref)
 	mush.msgDbref(player.dbref,"Set.")
 
 
 def drop (player,args,ex) :
 
+	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if dbref not in player.contents:
 		mush.msgDbref(player.dbref,"You don't have that.")
@@ -270,6 +269,7 @@ def drop (player,args,ex) :
 
 def take(player,args,ex) :
 
+	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if dbref not in mush.db[player.location].contents:
 		mush.msgDbref(player.dbref,"You don't see that here.")
@@ -294,14 +294,15 @@ def setfn(player,args,ex):
 		return
 
 	# set flag value.
+	l[0] = evalString(l[0],player.dbref)
 	dbref = findDbref(player,l[0])
 	if (dbref == None):
 		mush.msgDbref(player.dbref,f"Could not find an object with id {l[0]}.")
 		return
 
 	# find the flag name to set, and see if we are setting or clearing.
-	l[1] = l[1].strip().upper()
-	clear = l[1].strip()[0] == '!'
+	l[1] = evalString(l[1],player.dbref).upper()
+	clear = l[1][0] == '!'
 	if (clear):
 		l[1] = l[1][1:]
 
@@ -332,6 +333,7 @@ def examine(player,args,ex) :
 
 	# look to see if this is an attr examine command
 	args = args.split('/',1)
+	args[0] = evalString(args[0],player.dbref)
 
 	dbref = findDbref(player,args[0])
 	if (dbref == None):
@@ -339,7 +341,7 @@ def examine(player,args,ex) :
 		return
 
 	if (len(args) > 1):
-		examineAttr(player,dbref,args[1])
+		examineAttr(player,dbref,evalString(args[1],player.dbref))
 		return
 
 	o = mush.db[dbref]
@@ -393,13 +395,11 @@ def loadDb(player,args,ex):
 		mush.msgDbref(player.dbref,"It is not wise to meddle in the affairs of wizards.")
 	
 def think(player,args,ex):
-	mush.msgDbref(player.dbref,args)
-
-
-
+	mush.msgDbref(player.dbref,evalString(args,player.dbref))
 
 def enter(player,args,ex): 
 
+	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if (dbref == None):
 		mush.msgDbref(player.dbref,f"Could not find an object with id {args}.")
@@ -432,8 +432,8 @@ def link(player,args,ex):
 		mush.msgDbref(player.dbref,"huh? Usage: @LINK <obj>=<destination>.")
 		return
 
-	obj = findDbref(player,args[0])
-	to = findDbref(player,args[1])
+	obj = findDbref(player,evalString(args[0],player.dbref))
+	to = findDbref(player,evalString(args[1],player.dbref))
 
 	if (player.flags & ObjectFlags.WIZARD or \
 		(player.dbref == mush.db[obj].owner and (player.dbref == mush.db[to].owner or mush.db[to].flags & LINK_OK))):
@@ -458,10 +458,10 @@ def teleport(player,args,ex):
 	args=args.split('=',1)
 
 	if (len(args)>1):
-		to = findDbref(player,args[1])
-		obj = findDbref(player,args[0])
+		to = findDbref(player,evalString(args[1],player.dbref))
+		obj = findDbref(player,evalString(args[0],player.dbref))
 	else:
-		to = findDbref(player,args[0])
+		to = findDbref(player,evalString(args[0],player.dbref))
 		obj = player.dbref 
 
 	# Need to be a WIZARD or own an object in order to telpeort to it.
@@ -474,10 +474,6 @@ def teleport(player,args,ex):
 
 
 ## commands end
-
-
-
-
 
 def tryExits(player,exit):
 
