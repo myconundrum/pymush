@@ -101,8 +101,8 @@ class DbObject(dict) :
 		self.lastModified = time.time()
 		if (key == "NAME"):
 			self.aliases = value.split(';')
+			self.aliasMatches = value.upper().split(';')
 			self.name = self.aliases[0]
-
 
 	def __delitem__(self,key):
 		key = key.upper()
@@ -117,13 +117,11 @@ class DbObject(dict) :
 		if (key == "DESCRIPTION"):
 			self["DESCRIPTION"] = "You see nothing special."
 
-
 	def getAttrOwner(self,key):
 		return self.exData[f"_{key}_owner"]
 
 	def getAttrFlags(self,key):
 		return self.exData[f"_{key}_flags"]
-
 
 	def setAttrOwner(self,key,dbref):
 		key = key.upper()
@@ -136,6 +134,15 @@ class DbObject(dict) :
 		if key in self:
 			self.exData[f"_{key}_owner"]=flags
 		self.lastModified = time.time()
+
+	def aliasMatch(self,val):
+		return val.upper() in self.aliasMatches
+
+	def typeString(self):
+		v = self.flags & (ObjectFlags.ROOM | ObjectFlags.EXIT | ObjectFlags.PLAYER)
+		return v.name if v else "OBJECT"
+
+	
 
 
 class Database(list):

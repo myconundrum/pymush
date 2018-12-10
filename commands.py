@@ -2,11 +2,11 @@
 
 import database
 from database import ObjectFlags
-from utils import *
 import time
 from mushstate import mush
 from fnmatch import fnmatch
 import parser
+from parser import evalAttribute,evalString
 
 ## Helper functions
 def testLock(player,dbref):
@@ -23,7 +23,6 @@ def testLock(player,dbref):
 	mush.msgLocation(player.location,evalAttribute(dbref,"OFAIL",player.dbref),player.dbref)
 	
 	return False
-
 
 def moveObject(dbref,dbrefTo):
 
@@ -52,13 +51,6 @@ def moveObject(dbref,dbrefTo):
 		mush.msgLocation(to.dbref,evalAttribute(to.dbref,"OENTER",o.dbref),o.dbref)
 
 
-
-
-def objectTypeString(dbref):
-	o = mush.db[dbref]
-	v = o.flags & (ObjectFlags.ROOM | ObjectFlags.EXIT | ObjectFlags.PLAYER)
-	return v.name if v else "OBJECT"
-
 def findDbref(player,args): 
 	
 	args = args.strip().upper()
@@ -71,12 +63,12 @@ def findDbref(player,args):
 
 	# look in the contents of the current room
 	for d in mush.db[player.location].contents:
-		if (aliasMatch(d,args)):
+		if (mush.db[d].aliasMatch(args)):
 			return d 
 
 	# look in inventory
 	for d in player.contents:
-		if (aliasMatch(d,args)):
+		if (mush.db[d].aliasMatch(args)):
 			return d
 
 	if (args[0] == '#' and args[1:].isnumeric()):
@@ -86,24 +78,6 @@ def findDbref(player,args):
 			return dbref if mush.db.validDbref(dbref) else None 
 
 	return None
-
-def evalAttribute(dbref,attr,enactor):
-	
-	if attr not in mush.db[dbref]:
-		return ""
-
-	s = mush.db[dbref][attr]
-	s = s.replace("%N",mush.db[enactor].name)
-	s = s.replace("%B"," ")
-	s = s.replace("%R","\n\n")
-	s = s.replace("%!",f"#{dbref}") # 	%! = dbref of the object holding the attribute
-	s = s.replace("%#",f"#{enactor}") # %# = dbref of the enactor of this eval
-	s = s.replace("%L",f"#{mush.db[enactor].location}") # %L = enactor's location
-
-	# Need to add gender possessives -- %s, %o, %p, %a (based on gender attribute being set
-	# need to add softcode specifics.
-
-	return s
 
 
 ## Command List
@@ -133,18 +107,18 @@ def quit(player,args,ex) :
 
 
 def say(player,args,ex) :
-	args.strip(" \n")
+	args = evalString(args,player.dbref)
 	mush.msgLocation(player.location,f"{player.name} says \"{args}\"",player.dbref)
 	mush.msgDbref(player.dbref,f"You say \"{args}\"")
 
 def emote(player,args,ex):
-	mush.msgLocation(player.location,f"{player.name} {args}")
+	mush.msgLocation(player.location,f"{player.name} {evalString(args,player.dbref)}")
 
 def semiemote(player,args,ex):
-	mush.msgLocation(player.location,f"{player.name}{args}")
+	mush.msgLocation(player.location,f"{player.name}{evalString(args,player.dbref)}")
 	
 def create(player,args,ex ) :
-	
+	args = evalString(args,player.dbref)
 	dbref = mush.db.newObject(player)
 	mush.db[dbref]["NAME"] = args
 	mush.msgDbref(player.dbref,f"Object named {args} created with ref #{dbref}.")
@@ -154,7 +128,6 @@ def create(player,args,ex ) :
 
 
 def doDig (player,name,eout,eback):
-
 
 	# create room.
 	dbref = mush.db.newRoom(player)
@@ -182,10 +155,7 @@ def doDig (player,name,eout,eback):
 		mush.msgDbref(player.dbref,f"Exit named {eback} created with ref #{dbrefExit}.")
 		mush.log(2,f"{player.name}(#{player.dbref}) dug exit named {eback} (#{dbrefExit}).")
 
-
 	return dbref
-
-
 
 def dig(player, args,ex) :
 	
@@ -195,20 +165,20 @@ def dig(player, args,ex) :
 
 	# unpack command string to name and exits if they exist
 	l = args.split("=",1)
-	name = l[0].strip()
+	name = evalString(l[0],player.dbref)
 
 	if (len(l) > 1):
 		l2 = l[1].split(",",1)
-		eout = l2[0].strip()
+		eout = evalString(l2[0],player.dbref)
 		if (len(l2) > 1):
-			eback = l2[1].strip()
+			eback = evalString(l2[1],player.dbref)
 
 	doDig(player,name,eout,eback)
-
 
 #
 # BUGBUG No.
 def delete(player,args,ex) :
+	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if dbref != None and (player.dbref == mush.db[dbref].owner or player.flags & ObjectFlags.WIZARD):
 		mush.msgDbref(player.dbref,f"You delete object {mush.db[dbref].name} (#{dbref})")
@@ -217,14 +187,11 @@ def delete(player,args,ex) :
 			moveObject(player.dbref,player.home)
 		del mush.db[dbref]
 
-
-	
 def inventory(player,args,ex) : 
 
 	mush.msgDbref(player.dbref,"You are carrying:")
 	for dbref in player.contents:
 		mush.msgDbref(player.dbref,f"{mush.db[dbref].name}")
-
 
 def lookRoom(player,dbref,ex) : 
 
@@ -242,10 +209,9 @@ def lookRoom(player,dbref,ex) :
 		s = '\n'.join(exits)
 		mush.msgDbref(player.dbref,f"\nObvious exits:\n{s}")
 
-
-
 def look(player,args,ex) :
 
+	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 
 	if (dbref == player.location):
@@ -262,7 +228,9 @@ def look(player,args,ex) :
 
 
 
-
+#
+# BUGBUG Start from here completing evalstring word.
+#
 def attrset(player,args,attr) :
 	
 	args = args.split('=',1)
@@ -376,7 +344,7 @@ def examine(player,args,ex) :
 
 	o = mush.db[dbref]
 	mush.msgDbref(player.dbref,f"{o['NAME']}(#{dbref})")
-	mush.msgDbref(player.dbref,f"Type: {objectTypeString(dbref)} Flags: {' '.join([x.name for x in ObjectFlags if o.flags & x])}")
+	mush.msgDbref(player.dbref,f"Type: {mush.db[dbref].typeString()} Flags: {' '.join([x.name for x in ObjectFlags if o.flags & x])}")
 	mush.msgDbref(player.dbref,f"Owner: {mush.db[o.owner].name}(#{mush.db[o.owner].dbref}) Location: {mush.db[o.location].name}(#{mush.db[o.location].dbref})")
 	
 	if not o.flags & (ObjectFlags.ROOM):
@@ -516,7 +484,7 @@ def tryExits(player,exit):
 	exits = [x for x in mush.db[player.location].contents if mush.db[x].flags & ObjectFlags.EXIT]
 
 	for d in exits:
-		if (aliasMatch(d,exit) and testLock(player,d)):
+		if (mush.db[d].aliasMatch(exit) and testLock(player,d)):
 			moveObject(player.dbref,mush.db[d].location)
 			look(player,"","")
 			return True
@@ -607,8 +575,7 @@ def handleInput(data):
 
 	if (gCommands.get(cmd)):
 		player = mush.db[mush.pidToDbref[pid]]
-		e = parser.EvalEngine(args,player.dbref,player.dbref)
-		gCommands[cmd]["fn"](player,e.eval(""),gCommands[cmd]["ex"])
+		gCommands[cmd]["fn"](player,args,gCommands[cmd]["ex"])
 		return
 
 gCommands = {
