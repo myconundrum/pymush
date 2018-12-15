@@ -4,6 +4,14 @@
 		"selected_items":
 		[
 			[
+				"msg",
+				"msgLocation"
+			],
+			[
+				"destroy",
+				"destroyedTime"
+			],
+			[
 				"uint",
 				"uint64_t"
 			]
@@ -11,17 +19,8 @@
 	},
 	"buffers":
 	[
-		{
-			"file": "main.py",
-			"settings":
-			{
-				"buffer_size": 1,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		}
 	],
-	"build_system": "",
+	"build_system": "Packages/Python/Python.sublime-build",
 	"build_system_choices":
 	[
 		[
@@ -38,6 +37,22 @@
 			[
 				"Packages/Makefile/Make.sublime-build",
 				""
+			]
+		],
+		[
+			[
+				[
+					"Packages/Python/Python.sublime-build",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					"Syntax Check"
+				]
+			],
+			[
+				"Packages/Python/Python.sublime-build",
+				"Syntax Check"
 			]
 		]
 	],
@@ -69,6 +84,20 @@
 	},
 	"file_history":
 	[
+		"/Users/marcw/code/pymush/main.py",
+		"/Users/marcw/code/pymush/server.py",
+		"/Users/marcw/code/pymush/commands.py",
+		"/Users/marcw/code/pymush/mushstate.py",
+		"/Users/marcw/code/pymush/database.py",
+		"/Users/marcw/code/pymush/parser.py",
+		"/Users/marcw/code/pymush/tests.py",
+		"/Users/marcw/code/pymush/mushcore.py",
+		"/Users/marcw/code/pymush/mushfun.py",
+		"/Users/marcw/code/pymush/utils.py",
+		"/Users/marcw/code/pymush/log.txt",
+		"/Users/marcw/code/pymush/data.dat",
+		"/Users/marcw/code/pymush/odb.py",
+		"/Users/marcw/code/pymush/pymush.sublime-project",
 		"/Users/marcw/code/mymush/main.c",
 		"/Users/marcw/code/rtgame/makefile",
 		"/Users/marcw/code/rtgame/gobject.c",
@@ -119,13 +148,14 @@
 	],
 	"find":
 	{
-		"height": 39.0
+		"height": 24.0
 	},
 	"find_in_files":
 	{
 		"height": 101.0,
 		"where_history":
 		[
+			""
 		]
 	},
 	"find_state":
@@ -133,6 +163,134 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"attrset",
+			"evalattribute",
+			"aliasmatch",
+			"alias",
+			"aliasmath",
+			"evalatt",
+			"print",
+			"door",
+			"evalengine",
+			"evalattribute",
+			"popsubs",
+			"pushsubs",
+			"sub =",
+			"subs =",
+			"sub =",
+			"sub=",
+			"evalengin",
+			"evalatt",
+			"evalengine",
+			"iter",
+			"regist",
+			"fnmatch",
+			"fn_iter",
+			"iter",
+			"addboth",
+			"attr",
+			"dbrefify",
+			"setfn",
+			"randint",
+			"randi",
+			"create",
+			"first",
+			"create",
+			"aposs",
+			"notimp",
+			"log",
+			"create",
+			"isdbref",
+			"emit",
+			"poss",
+			"eq",
+			"time",
+			"1",
+			"termsma",
+			"nexttok",
+			"fnmatch",
+			"evalstring",
+			"evalengin",
+			"escaping",
+			"inlist",
+			"evalterms",
+			"ctx.getOneTerm()",
+			"ctx.getTerms()",
+			"evalterms",
+			"can_see",
+			"splitterms",
+			"EvalEngine",
+			"extract",
+			"dec",
+			"elem",
+			"MushFunctions.",
+			"getterms",
+			"getobj",
+			"MALE",
+			"print",
+			"getterms",
+			"(line,enactor,obj)",
+			"eq",
+			"sep",
+			"fnma",
+			"eval",
+			"print",
+			"registers",
+			"line,enactor,obj",
+			"obj",
+			"eval",
+			"getobj",
+			"eval",
+			"ceil",
+			"div",
+			"create",
+			".last",
+			"isnum",
+			"delete",
+			"destr",
+			"delete",
+			"destroy",
+			"dig",
+			"say",
+			"create",
+			"home",
+			"say",
+			"shortname",
+			"odb",
+			"type",
+			"attributes",
+			"db.objects",
+			"db",
+			"db.objects",
+			"JUNK",
+			"drop",
+			"dropp",
+			"HIDDEN",
+			"Hidden",
+			"msglog",
+			"logMsg",
+			"logmsg",
+			"state",
+			"mudserver",
+			"emitLocation",
+			"emitPlayer",
+			"players[",
+			"eval",
+			"succ",
+			"drop",
+			"create",
+			"db.player",
+			"finddbref",
+			"db.player",
+			"testl",
+			"messag",
+			"eval",
+			"lookroom",
+			"getplayer",
+			"attri",
+			"getdb",
+			"getobje",
+			"player"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -140,6 +298,16 @@
 		"regex": false,
 		"replace_history":
 		[
+			"restore",
+			"save",
+			"ctx.evalOneTerm(terms)",
+			"ctx.evalTerms(terms)",
+			"self.",
+			"(ctx)",
+			"line,enactor,obj,registers=[]",
+			"db",
+			"mush.msgLocation",
+			"mush.msgDbref"
 		],
 		"reverse": false,
 		"show_context": true,
@@ -150,37 +318,8 @@
 	"groups":
 	[
 		{
-			"selected": 0,
 			"sheets":
 			[
-				{
-					"buffer": 0,
-					"file": "main.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 1,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								1,
-								1
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 0,
-					"type": "text"
-				}
 			]
 		}
 	],
@@ -217,13 +356,13 @@
 	"menu_visible": true,
 	"output.exec":
 	{
-		"height": 108.0
+		"height": 28.0
 	},
 	"output.find_results":
 	{
 		"height": 0.0
 	},
-	"pinned_build_system": "Packages/Makefile/Make.sublime-build",
+	"pinned_build_system": "Packages/Python/Python.sublime-build",
 	"project": "pymush.sublime-project",
 	"replace":
 	{

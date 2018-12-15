@@ -6,6 +6,7 @@ import bcrypt
 import os.path
 import pickle
 import time
+import queue
 
 _BASE="data"
 _LOG="log.txt"
@@ -33,19 +34,16 @@ class UserRecord:
 		self.first = None 
 		self.last = None
 
-
-
-
 class MushState:
 
 	def __init__(self):
-
 		self.users = {}	 				# user/password database
 		self.version = 	_MUSHVERSION
 
 		self.running 	= False			# is mush currently running?
 		self.pidToDbref = {}			# look up from networking pid table for connected players
 		self.dbrefToPid = {}			# look up from dbref to networking pid for connected players
+
 
 
 		self.server = None 				# mush networking code
@@ -58,7 +56,7 @@ class MushState:
 		self.db  = database.Database()
 		self.freshMush()
 
-	
+		self.commandQueue = queue.Queue()
 
 	def start(self):
 
@@ -81,8 +79,6 @@ class MushState:
 	def update(self):
 		
 		self.server.update()
-
-
 		# account for new players
 		for pid in self.server.get_new_players():
 			self.pidToDbref[pid] = -1
@@ -100,9 +96,6 @@ class MushState:
 			self.log(1,"Doing periodic updates...")
 			self.db.recycle()
 			self.lastPeriodic = time.time()
-
-	
-
 
 	def getCommands(self):
 		return self.server.get_commands()
