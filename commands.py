@@ -15,12 +15,12 @@ def testLock(player,dbref):
 	lockDbref = findDbref(player,lock)
 
 	if (lock == "" or lockDbref == player.dbref or lockDbref in player.contents or player.flags & ObjectFlags.WIZARD):
-		mush.msgDbref(player.dbref,evalAttribute(dbref,"SUCCESS",player.dbref))
-		mush.msgLocation(player.location,evalAttribute(dbref,"OSUCCESS",player.dbref),player.dbref)
+		mush.message(player.dbref,evalAttribute(dbref,"SUCCESS",player.dbref))
+		mush.message(player.location,evalAttribute(dbref,"OSUCCESS",player.dbref),player.dbref)
 		return True
 
-	mush.msgDbref(player.dbref,evalAttribute(dbref,"FAIL",player.dbref))
-	mush.msgLocation(player.location,evalAttribute(dbref,"OFAIL",player.dbref),player.dbref)
+	mush.message(player.dbref,evalAttribute(dbref,"FAIL",player.dbref))
+	mush.message(player.location,evalAttribute(dbref,"OFAIL",player.dbref),player.dbref)
 	
 	return False
 
@@ -31,13 +31,13 @@ def moveObject(dbref,dbrefTo):
 	fr = mush.db[o.location]
 
 	if (mush.db[dbrefTo].location == dbref):
-		mush.msgDbref(dbref,"You can't enter objects in your inventory.")
+		mush.message(dbref,"You can't enter objects in your inventory.")
 		return
 
 	if (testLock(o,dbrefTo)):
-		# show leave messages
-		mush.msgDbref(o.dbref,evalAttribute(fr.dbref,"LEAVE",o.dbref))
-		mush.msgLocation(fr.dbref,evalAttribute(fr.dbref,"OLEAVE",o.dbref),o.dbref)
+		# show leave mush.messages
+		mush.message(o.dbref,evalAttribute(fr.dbref,"LEAVE",o.dbref))
+		mush.message(fr.dbref,evalAttribute(fr.dbref,"OLEAVE",o.dbref),o.dbref)
 
 		# remove from current location.
 		fr.contents.remove(o.dbref)
@@ -46,9 +46,9 @@ def moveObject(dbref,dbrefTo):
 		to.contents.append(o.dbref)
 		o.location = to.dbref
 
-		# show enter messages.
-		mush.msgDbref(o.dbref,evalAttribute(to.dbref,"ENTER",o.dbref))
-		mush.msgLocation(to.dbref,evalAttribute(to.dbref,"OENTER",o.dbref),o.dbref)
+		# show enter mush.messages.
+		mush.message(o.dbref,evalAttribute(to.dbref,"ENTER",o.dbref))
+		mush.message(to.dbref,evalAttribute(to.dbref,"OENTER",o.dbref),o.dbref)
 
 
 def findDbref(player,args): 
@@ -87,17 +87,17 @@ def kill(player,args,ex) :
 
 	if not player.flags & ObjectFlags.WIZARD:
 		mush.log(0,f"{player.name} (#{player.dbref}) tried to kill the server.")
-		mush.msgDbref(player.dbref,"It is dangerous to meddle in the affairs of wizards.")
+		mush.message(player.dbref,"It is dangerous to meddle in the affairs of wizards.")
 		return
-	
-	mush.msgAll(f"{player.name} killed the server. Goodbye.")
+
+	mush.messageAll(f"{player.name} killed the server. Goodbye.")
 	mush.log(0,f"{player.name} (#{player.dbref}) killed the server.")
 	mush.quit()
 
 def quit(player,args,ex) :
 
-	mush.msgDbref(player.dbref,"Logging out. Goodbye.")
-	mush.msgLocation(player.location,f"{player.name} disconnected.")
+	mush.message(player.dbref,"Logging out. Goodbye.")
+	mush.message(player.location,f"{player.name} disconnected.")
 	mush.log(1,f"{player.name} (#{player.dbref}) disconnected.")
 	
 	player.flags ^= ObjectFlags.CONNECTED
@@ -108,20 +108,20 @@ def quit(player,args,ex) :
 
 def say(player,args,ex) :
 	args = evalString(args,player.dbref)
-	mush.msgLocation(player.location,f"{player.name} says \"{args}\"",player.dbref)
-	mush.msgDbref(player.dbref,f"You say \"{args}\"")
+	mush.message(player.location,f"{player.name} says \"{args}\"",player.dbref)
+	mush.message(player.dbref,f"You say \"{args}\"")
 
 def emote(player,args,ex):
-	mush.msgLocation(player.location,f"{player.name} {evalString(args,player.dbref)}")
+	mush.message(player.location,f"{player.name} {evalString(args,player.dbref)}")
 
 def semiemote(player,args,ex):
-	mush.msgLocation(player.location,f"{player.name}{evalString(args,player.dbref)}")
+	mush.message(player.location,f"{player.name}{evalString(args,player.dbref)}")
 	
 def create(player,args,ex ) :
 	args = evalString(args,player.dbref)
 	dbref = mush.db.newObject(player)
 	mush.db[dbref]["NAME"] = args
-	mush.msgDbref(player.dbref,f"Object named {args} created with ref #{dbref}.")
+	mush.message(player.dbref,f"Object named {args} created with ref #{dbref}.")
 	mush.log(2,f"{player.name}(#{player.dbref}) created object named {args} (#{dbref}).")
 	
 	return dbref
@@ -132,7 +132,7 @@ def doDig (player,name,eout,eback):
 	# create room.
 	dbref = mush.db.newRoom(player)
 	mush.db[dbref]["NAME"] = name
-	mush.msgDbref(player.dbref,f"Room named {name} created with ref #{dbref}.")
+	mush.message(player.dbref,f"Room named {name} created with ref #{dbref}.")
 	mush.log(2,f"{player.name}(#{player.dbref}) dug room named {name} (#{dbref}).")
 
 
@@ -142,7 +142,7 @@ def doDig (player,name,eout,eback):
 		mush.db[dbrefExit].location = dbref 
 		mush.db[dbrefExit].home = player.location
 		mush.db[player.location].contents.append(dbrefExit)
-		mush.msgDbref(player.dbref,f"Exit named {eout} created with ref #{dbrefExit}.")
+		mush.message(player.dbref,f"Exit named {eout} created with ref #{dbrefExit}.")
 		mush.log(2,f"{player.name}(#{player.dbref}) dug exit named {eout} (#{dbrefExit}).")
 
 
@@ -152,7 +152,7 @@ def doDig (player,name,eout,eback):
 		mush.db[dbrefExit].location = player.location
 		mush.db[dbrefExit].home = dbref
 		mush.db[dbref].contents.append(dbrefExit)
-		mush.msgDbref(player.dbref,f"Exit named {eback} created with ref #{dbrefExit}.")
+		mush.message(player.dbref,f"Exit named {eback} created with ref #{dbrefExit}.")
 		mush.log(2,f"{player.name}(#{player.dbref}) dug exit named {eback} (#{dbrefExit}).")
 
 	return dbref
@@ -181,22 +181,22 @@ def delete(player,args,ex) :
 	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if dbref != None and (player.dbref == mush.db[dbref].owner or player.flags & ObjectFlags.WIZARD):
-		mush.msgDbref(player.dbref,f"You delete object {mush.db[dbref].name} (#{dbref})")
+		mush.message(player.dbref,f"You delete object {mush.db[dbref].name} (#{dbref})")
 		if dbref == player.location:
-			mush.msgDbref(player.dbref,f"You delete the room you are in! Sending you home!")
+			mush.message(player.dbref,f"You delete the room you are in! Sending you home!")
 			moveObject(player.dbref,player.home)
 		del mush.db[dbref]
 
 def inventory(player,args,ex) : 
 
-	mush.msgDbref(player.dbref,"You are carrying:")
+	mush.message(player.dbref,"You are carrying:")
 	for dbref in player.contents:
-		mush.msgDbref(player.dbref,f"{mush.db[dbref].name}")
+		mush.message(player.dbref,f"{mush.db[dbref].name}")
 
 def lookRoom(player,dbref,ex) : 
 
 	o =mush.db[dbref]
-	mush.msgDbref(player.dbref,f"[{o.name}]\n\n{o['DESCRIPTION']}")
+	mush.message(player.dbref,f"[{o.name}]\n\n{o['DESCRIPTION']}")
 
 	# filter contents into exits and contents both that are not set DARK
 	contents = [mush.db[x].name for x in o.contents if not mush.db[x].flags & ObjectFlags.EXIT and not mush.db[x].flags & ObjectFlags.DARK]
@@ -204,10 +204,10 @@ def lookRoom(player,dbref,ex) :
 	
 	if len(contents):
 		s = '\n'.join(contents)
-		mush.msgDbref(player.dbref,f"\nYou see:\n{s}")
+		mush.message(player.dbref,f"\nYou see:\n{s}")
 	if len(exits):
 		s = '\n'.join(exits)
-		mush.msgDbref(player.dbref,f"\nObvious exits:\n{s}")
+		mush.message(player.dbref,f"\nObvious exits:\n{s}")
 
 def look(player,args,ex) :
 
@@ -219,12 +219,12 @@ def look(player,args,ex) :
 		return
 	
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"You don't see anything named {args} here.")
+		mush.message(player.dbref,f"You don't see anything named {args} here.")
 		return
 
 	o = mush.db[dbref]
-	mush.msgDbref(player.dbref,o.name)
-	mush.msgDbref(player.dbref,o["DESCRIPTION"])
+	mush.message(player.dbref,o.name)
+	mush.message(player.dbref,o["DESCRIPTION"])
 
 
 def attrset(player,args,attr) :
@@ -232,24 +232,24 @@ def attrset(player,args,attr) :
 	args = args.split('=',1)
 	
 	if (len(args)<2):
-		mush.msgDbref(player.dbref,"huh?")
+		mush.message(player.dbref,"huh?")
 		return
 
 	args[0] = evalString(args[0],player.dbref)
 	dbref = findDbref(player,args[0])
 
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"You don't see anything named {args[0]} here.")
+		mush.message(player.dbref,f"You don't see anything named {args[0]} here.")
 		return
 
 	if mush.db[dbref].owner != player.dbref and not player.flags & ObjectFlags.WIZARD:
-		mush.msgDbref(player.dbref,f"You don't own that.")
+		mush.message(player.dbref,f"You don't own that.")
 		return
 
 
 	mush.db[dbref][attr] = evalString(args[1],player.dbref)
 	mush.db[dbref].setAttrOwner(attr,player.dbref)
-	mush.msgDbref(player.dbref,"Set.")
+	mush.message(player.dbref,"Set.")
 
 
 def drop (player,args,ex) :
@@ -257,14 +257,14 @@ def drop (player,args,ex) :
 	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if dbref not in player.contents:
-		mush.msgDbref(player.dbref,"You don't have that.")
+		mush.message(player.dbref,"You don't have that.")
 		return
 
 	# drop the object
 	moveObject(dbref,player.location)
 
-	mush.msgDbref(player.dbref,evalAttribute(dbref,"DROP",player.dbref))
-	mush.msgLocation(player.location,evalAttribute(dbref,"ODROP",player.dbref),player.dbref)
+	mush.message(player.dbref,evalAttribute(dbref,"DROP",player.dbref))
+	mush.message(player.location,evalAttribute(dbref,"ODROP",player.dbref),player.dbref)
 
 
 def take(player,args,ex) :
@@ -272,7 +272,7 @@ def take(player,args,ex) :
 	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if dbref not in mush.db[player.location].contents:
-		mush.msgDbref(player.dbref,"You don't see that here.")
+		mush.message(player.dbref,"You don't see that here.")
 		return
 
 	if (testLock(player,dbref)):
@@ -282,7 +282,7 @@ def setfn(player,args,ex):
 
 	l = args.split('=',1)
 	if (len(l) == 1):
-		mush.msgDbref(player.dbref,"Huh?")
+		mush.message(player.dbref,"Huh?")
 		return
 
 	if (l[0].find('/') != -1):
@@ -297,7 +297,7 @@ def setfn(player,args,ex):
 	l[0] = evalString(l[0],player.dbref)
 	dbref = findDbref(player,l[0])
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"Could not find an object with id {l[0]}.")
+		mush.message(player.dbref,f"Could not find an object with id {l[0]}.")
 		return
 
 	# find the flag name to set, and see if we are setting or clearing.
@@ -310,10 +310,10 @@ def setfn(player,args,ex):
 		if flag.name == l[1]:
 			if (clear): 
 				mush.db[dbref].flags = mush.db[dbref].flags & ~flag
-				mush.msgDbref(player.dbref,f"Flag {flag.name} reset on {mush.db[dbref].name} (#{dbref})")
+				mush.message(player.dbref,f"Flag {flag.name} reset on {mush.db[dbref].name} (#{dbref})")
 			else: 
 				mush.db[dbref].flags |= flag
-				mush.msgDbref(player.dbref,f"Flag {flag.name} set on {mush.db[dbref].name} (#{dbref})")
+				mush.message(player.dbref,f"Flag {flag.name} set on {mush.db[dbref].name} (#{dbref})")
 			
 
 def examineAttr(player,dbref,pattern):
@@ -322,9 +322,9 @@ def examineAttr(player,dbref,pattern):
 	matches = [x for x in mush.db[dbref] if fnmatch(x,pattern)]
 
 	if (len(matches)):
-		mush.msgDbref(player.dbref,"\n".join([f"{x} [#{mush.db[dbref].getAttrOwner(x)}]: {mush.db[dbref][x]}" for x in matches]))
+		mush.message(player.dbref,"\n".join([f"{x} [#{mush.db[dbref].getAttrOwner(x)}]: {mush.db[dbref][x]}" for x in matches]))
 	else:
-		mush.msgDbref(player.dbref,"No matching attributes.")
+		mush.message(player.dbref,"No matching attributes.")
 
 
 
@@ -337,7 +337,7 @@ def examine(player,args,ex) :
 
 	dbref = findDbref(player,args[0])
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"Could not find an object with id {args[0]}.")
+		mush.message(player.dbref,f"Could not find an object with id {args[0]}.")
 		return
 
 	if (len(args) > 1):
@@ -345,19 +345,19 @@ def examine(player,args,ex) :
 		return
 
 	o = mush.db[dbref]
-	mush.msgDbref(player.dbref,f"{o['NAME']}(#{dbref})")
-	mush.msgDbref(player.dbref,f"Type: {mush.db[dbref].typeString()} Flags: {' '.join([x.name for x in ObjectFlags if o.flags & x])}")
-	mush.msgDbref(player.dbref,f"Owner: {mush.db[o.owner].name}(#{mush.db[o.owner].dbref}) Location: {mush.db[o.location].name}(#{mush.db[o.location].dbref})")
+	mush.message(player.dbref,f"{o['NAME']}(#{dbref})")
+	mush.message(player.dbref,f"Type: {mush.db[dbref].typeString()} Flags: {' '.join([x.name for x in ObjectFlags if o.flags & x])}")
+	mush.message(player.dbref,f"Owner: {mush.db[o.owner].name}(#{mush.db[o.owner].dbref}) Location: {mush.db[o.location].name}(#{mush.db[o.location].dbref})")
 	
 	if not o.flags & (ObjectFlags.ROOM):
-		mush.msgDbref(player.dbref,f"Home: {mush.db[o.home].name}(#{mush.db[o.home].dbref})")
-	mush.msgDbref(player.dbref,f"Created: {time.ctime(o.creationTime)}")
-	mush.msgDbref(player.dbref,f"Modified: {time.ctime(o.lastModified)}")
+		mush.message(player.dbref,f"Home: {mush.db[o.home].name}(#{mush.db[o.home].dbref})")
+	mush.message(player.dbref,f"Created: {time.ctime(o.creationTime)}")
+	mush.message(player.dbref,f"Modified: {time.ctime(o.lastModified)}")
 	if (o.flags & ObjectFlags.JUNK):
-		mush.msgDbref(player.dbref,f"Destroyed: {time.ctime(o.destroyedTime)}")
+		mush.message(player.dbref,f"Destroyed: {time.ctime(o.destroyedTime)}")
 
 	if ex == "ALL":
-		mush.msgDbref(player.dbref,"\n".join([f"{x} [#{o.getAttrOwner(x)}]: {o[x]}" for x in o]))
+		mush.message(player.dbref,"\n".join([f"{x} [#{o.getAttrOwner(x)}]: {o[x]}" for x in o]))
 
 	# filter into content and exits and show. Right now all (even DARK) are shown. Should check
 	# for see_all or similar.
@@ -366,10 +366,10 @@ def examine(player,args,ex) :
 	
 	if len(contents):
 		s = '\n'.join(contents)
-		mush.msgDbref(player.dbref,f"\nContents:\n{s}")
+		mush.message(player.dbref,f"\nContents:\n{s}")
 	if len(exits):
 		s = '\n'.join(exits)
-		mush.msgDbref(player.dbref,f"\nExits:\n{s}")
+		mush.message(player.dbref,f"\nExits:\n{s}")
 
 
 
@@ -377,11 +377,11 @@ def saveDb(player,args,ex):
 
 	if (player.flags & ObjectFlags.WIZARD):
 		mush.save()
-		mush.msgDbref(player.dbref,f"database saved.")
+		mush.message(player.dbref,f"database saved.")
 		mush.log(0,f"{player.name} (#{player.dbref}) kicked off a database save.")
 
 	else : 
-		mush.msgDbref(player.dbref,"It is not wise to meddle in the affairs of wizards.")
+		mush.message(player.dbref,"It is not wise to meddle in the affairs of wizards.")
 	
 
 def loadDb(player,args,ex):
@@ -389,20 +389,20 @@ def loadDb(player,args,ex):
 	if (player.flags & ObjectFlags.WIZARD):
 		mush.load()
 		mush.log(0,f"{player.name} (#{player.dbref}) kicked off a database load.")
-		mush.msgDbref(player.dbref,f"database loaded.")
+		mush.message(player.dbref,f"database loaded.")
 		mush.msgAll(f"{player.name} kicked off a reload of the database.");
 	else : 
-		mush.msgDbref(player.dbref,"It is not wise to meddle in the affairs of wizards.")
+		mush.message(player.dbref,"It is not wise to meddle in the affairs of wizards.")
 	
 def think(player,args,ex):
-	mush.msgDbref(player.dbref,evalString(args,player.dbref))
+	mush.message(player.dbref,evalString(args,player.dbref))
 
 def enter(player,args,ex): 
 
 	args = evalString(args,player.dbref)
 	dbref = findDbref(player,args)
 	if (dbref == None):
-		mush.msgDbref(player.dbref,f"Could not find an object with id {args}.")
+		mush.message(player.dbref,f"Could not find an object with id {args}.")
 		return
 
 	o = mush.db[dbref]
@@ -411,17 +411,26 @@ def enter(player,args,ex):
 		moveObject(player.dbref,dbref)
 		look(player,"",None)
 	else:
-		mush.msgDbref(player.dbref,"You can't enter that.")
+		mush.message(player.dbref,"You can't enter that.")
 
 	
 def leave(player,args,ex):
 
 	if (mush.db[player.location].flags & ObjectFlags.ROOM):
-		mush.msgDbref(player.dbref,"Use an exit to leave this room.")
+		mush.message(player.dbref,"Use an exit to leave this room.")
 		return
 
 	moveObject(player.dbref,mush.db[player.location].location)
 
+
+def lemit(player,args,ex):
+	args = args.split('=',1)
+	if (len(args) != 2):
+		mush.message(player.dbref,"huh? Usage @LEMIT <location>=<msg>.")
+		return
+
+	loc = findDbref(player,evalString(args[0],player.dbref))
+	mush.message(loc,args[1])
 
 def link(player,args,ex):
 
@@ -429,7 +438,7 @@ def link(player,args,ex):
 	args=args.split('=',1)
 
 	if (len(args) != 2):
-		mush.msgDbref(player.dbref,"huh? Usage: @LINK <obj>=<destination>.")
+		mush.message(player.dbref,"huh? Usage: @LINK <obj>=<destination>.")
 		return
 
 	obj = findDbref(player,evalString(args[0],player.dbref))
@@ -442,12 +451,12 @@ def link(player,args,ex):
 		else:
 			mush.db[obj].home = to 
 
-		mush.msgDbref(player.dbref,"Linked.")
+		mush.message(player.dbref,"Linked.")
 	else:
-		mush.msgDbref(plsyer.dbref,"You don't have permission to do that.")
+		mush.message(plsyer.dbref,"You don't have permission to do that.")
 
 def home(player,args,ex):
-	mush.msgDbref(player.dbref,"Going home...")
+	mush.message(player.dbref,"Going home...")
 	moveObject(player.dbref,player.home)
 	look(player,"","")
 
@@ -470,11 +479,9 @@ def teleport(player,args,ex):
 		if (mush.db[obj].flags & ObjectFlags.PLAYER):
 			look(mush.db[obj],"","")
 		else: 
-			mush.msgDbref(player.dbref,"Teleported.")
-
+			mush.message(player.dbref,"Teleported.")
 
 ## commands end
-
 def tryExits(player,exit):
 
 	exits = [x for x in mush.db[player.location].contents if mush.db[x].flags & ObjectFlags.EXIT]
@@ -487,91 +494,16 @@ def tryExits(player,exit):
 
 	return False
 
-def handleConnectingPlayer(pid,cmd,args):
+def handleCommand(cmd):
 
-	if (cmd == "CONNECT"):
-		
-		l = args.split(" ",1)
-
-		if not mush.userExists(l[0]):
-			mush.msgPid(pid,"Bad username or password. Try again.")
-			return 
-
-		if (len(l) == 1):
-			mush.msgPid(pid,"No password. Try again.")
-			return 
-
-		if not mush.connectUser(l[0],pid,l[1]):
-			mush.msgPid(pid,"Bad username or password. Try again.")
-			return 
-
-
-		p = mush.db[mush.pidToDbref[pid]]
-		p.flags |= ObjectFlags.CONNECTED
-		p.flags ^= ObjectFlags.DARK
-		mush.msgLocation(p.location,f"{p.name} connected.")
-		mush.log(1,f"{p.name} (#{p.dbref}) connected.")
-		look(p,"","")
-
-	if (cmd == "CREATE"):
-		
-		l = args.split(" ",1)
-
-		if mush.userExists(l[0]):
-			mush.msgPid(pid,"That name already exists. Choose another.")
-			return 
-
-		if (len(l)==1):
-			mush.msgPid(pid,"No password. Try again.")
-			return 
-		
-		# create a new player object in the game
-		dbref = mush.db.newPlayer(None)
-		mush.db[dbref]["NAME"] = l[0]
-		mush.db[dbref].flags |= ObjectFlags.CONNECTED
-		mush.db[dbref].location = mush.db.playerBase
-		mush.db[mush.db.playerBase].contents.append(dbref)
-
-		
-		mush.newUser(dbref,pid,l[1])
-		mush.msgLocation(mush.db[dbref].location,f"Character named {mush.db[dbref].name} created.")
-		look(mush.db[dbref],"","")
-		mush.log(1,f"New user created named {mush.db[dbref].name} with dbref #{dbref}")
-		
-
-def handleInput(data):
-
-	(pid,cmd,args) = data
-
-	# catch empty input.
-	if (len(cmd)==0):
-		return
-
-	# special case some commands that don't end in a whitespace.
-	if (cmd[0] == ':'): 
-		args = f"{cmd[1:]} {args}"
-		cmd = ':'
-	elif (cmd[0] == ';'):
-		args = f"{cmd[1:]} {args}"
-		cmd = ';'
-	elif (cmd[0] == '"'):
-		args = f"{cmd[1:]} {args}"
-		cmd = '"'
-		
-	# upper case the command to do proper matching
-	cmd = cmd.upper()
-
-	if (mush.pidToDbref[pid] == -1):
-		handleConnectingPlayer(pid,cmd,args)
-		return
-
+	print(f"command struct: {cmd.dbref}\n{cmd.cmd}\n{cmd.args}")
 	# see if it was an exit command.
-	if (tryExits(mush.db[mush.pidToDbref[pid]],cmd)):
+	if (tryExits(mush.db[cmd.dbref],cmd.cmd)):
 		return
 
-	if (gCommands.get(cmd)):
-		player = mush.db[mush.pidToDbref[pid]]
-		gCommands[cmd]["fn"](player,args,gCommands[cmd]["ex"])
+	if (gCommands.get(cmd.cmd)):
+		player = mush.db[cmd.dbref]
+		gCommands[cmd.cmd]["fn"](player,cmd.args,gCommands[cmd.cmd]["ex"])
 		return
 
 gCommands = {
@@ -587,6 +519,8 @@ gCommands = {
 	"@CREATE"		: {"fn" : create, "ex" : None},
 	"@CR"			: {"fn" : create, "ex" : None},
 	"@DIG"			: {"fn" : dig, "ex" : None},
+	"@LISTEN"		: {"fn" : attrset, "ex" : "LISTEN"},
+	"@AHEAR"		: {"fn" : attrset, "ex" : "AHEAR"},
 	"@DESCRIBE"		: {"fn" : attrset, "ex" : "DESCRIPTION"},
 	"@DESC"			: {"fn" : attrset, "ex" : "DESCRIPTION"},
 	"@SUCCESS"		: {"fn" : attrset, "ex" : "SUCCESS"},
@@ -602,6 +536,7 @@ gCommands = {
 	"@NAME"			: {"fn" : attrset, "ex" : "NAME"},
 	"@FAIL"			: {"fn" : attrset, "ex" : "FAIL"},
 	"@OFAIL"		: {"fn" : attrset, "ex" : "OFAIL"},
+	"@LEMIT"		: {"fn" : lemit, "ex" : None},
 
 	"@LINK"			: {"fn" : link, "ex": None},
 	"HOME"			: {"fn" : home, "ex": None},

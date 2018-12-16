@@ -34,6 +34,7 @@ class EvalEngine:
 			"%R": "\n",									# %R (newline)
 			"%B": " ",									# %B (space)
 			"%t": "\t",									# %t (tab)
+			"%%": "%",									# %% (%)
 	}
 		
 	def save(self):

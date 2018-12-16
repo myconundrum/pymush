@@ -248,7 +248,7 @@ class MushFunctions():
 
 		o = mush.db[dbref]
 		if (o.flags & (ObjectFlags.ROOM | ObjectFlags.PLAYER)):
-			mush.msgDbref(enactor,"You can only clone things and exits.")
+			mush.message(enactor,"You can only clone things and exits.")
 			return "#-1"
 		# BUGBUG This is not implemented yet. Needs to be completed.
 
@@ -281,7 +281,7 @@ class MushFunctions():
 
 		dbref = mush.db.newObject(mush.db[ctx.enactor])
 		mush.db[dbref]["NAME"] = terms[0]
-		mush.msgDbref(ctx.enactor,f"Object named {terms[0]} created with ref #{dbref}.")
+		mush.message(ctx.enactor,f"Object named {terms[0]} created with ref #{dbref}.")
 		mush.log(2,f"{mush.db[ctx.enactor].name}(#{ctx.enactor}) created object named {terms[0]} (#{dbref}).")
 		return f"#{dbref}"
 	
@@ -451,7 +451,7 @@ class MushFunctions():
 		return sep.join(rval)
 
 	def fn_emit(self,ctx,terms):
-		mush.msgLocation(mush.db[ctx.obj].location,ctx.evalOneTerm(terms))
+		mush.message(mush.db[ctx.obj].location,ctx.evalOneTerm(terms))
 		return ""
 
 	def fn_enumerate(self,ctx,terms):
@@ -1247,7 +1247,7 @@ class MushFunctions():
 		terms = ctx.evalTerms(terms)
 		if (len(terms) != 2):
 			return "Function expects two terms."
-		mush.msgLocation(mush.db[ctx.obj].location,terms[1],ctx.dbrefify(terms[0]))
+		mush.message(mush.db[ctx.obj].location,terms[1],ctx.dbrefify(terms[0]))
 		return ""
 
 	def fn_open(self,ctx,terms):
@@ -1266,7 +1266,7 @@ class MushFunctions():
 		mush.db[dbref].location = mush.db[ctx.enactor].location
 		mush.db[dbref].home = ctx.dbrefify(terms[1])
 		mush.db[ctx.enactor].contents.append(dbref)
-		mush.msgDbref(ctx.enactor,f"Exit named {terms[0]} created with ref #{dbref}.")
+		mush.message(ctx.enactor,f"Exit named {terms[0]} created with ref #{dbref}.")
 		mush.log(2,f"{mush.db[ctx.enactor].name}(#{ctx.enactor}) dug exit named {terms[0]} (#{dbref}).")
 
 		return f"#{dbref}"
@@ -1312,8 +1312,8 @@ class MushFunctions():
 
 		dbref = ctx.dbrefify(terms[0])
 		if mush.db.validDbref(dbref):
-			mush.msgDbref(dbref,terms[1])
-			mush.msgDbref(ctx.enactor,f"You pemit \"{terms[1]}\" to {mush.db[dbref].name}.")
+			mush.message(dbref,terms[1])
+			mush.message(ctx.enactor,f"You pemit \"{terms[1]}\" to {mush.db[dbref].name}.")
 			return ""
 
 		return "I don't see that player here."
@@ -1423,7 +1423,7 @@ class MushFunctions():
 		if not mush.db.validDbref(dbref):
 			return "I can't find that."
 
-		mush.msgLocation(dbref,terms[1])
+		mush.message(dbref,terms[1])
 		return ""
 
 	def fn_remove(self,ctx,terms):
